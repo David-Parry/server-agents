@@ -1,0 +1,97 @@
+spring:
+  application:
+    name: agent-client
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${SERVER_PORT:8081}
+
+# Agent Client Configuration
+agent:
+  client:
+    # API key for authentication with the main server
+    api-key: ${AGENT_API_KEY}
+    
+    # WebSocket server URL
+    server-url: ${AGENT_SERVER_URL:ws://localhost:8080/agent}
+    
+    # Connection settings
+    connection:
+      heartbeat-interval-seconds: 30
+      connection-timeout-seconds: 30
+      idle-timeout-seconds: 300
+      # WebSocket text message buffer size in bytes (default: 10 MB)
+      # Increase this if you receive "message too big for output buffer" errors
+      text-message-buffer-size: ${WS_TEXT_MESSAGE_BUFFER_SIZE:10485760}
+    
+    # Reconnection settings
+    reconnect:
+      enabled: true
+      max-attempts: 5
+      initial-delay-ms: 1000
+      max-delay-ms: 30000
+      backoff-multiplier: 2.0
+    
+    # Chain execution settings
+    chain:
+      # Maximum time to wait for reconnection during chain execution (seconds)
+      # If WebSocket disconnects mid-chain, system will attempt reconnection
+      # for up to this duration before failing the chain with partial results
+      reconnect-timeout-seconds: ${CHAIN_RECONNECT_TIMEOUT_SECONDS:60}
+      
+      # Maximum number of agents in a chain
+      # Prevents runaway chains from consuming resources
+      max-chain-length: ${CHAIN_MAX_LENGTH:10}
+    
+    # Agent Configuration File Path
+    # If not specified, looks for "agent.yml" on classpath root
+    # If neither exists, continues without agent configurations
+    # 
+    # Supported formats:
+    #   - File path: /etc/agent-client/agent.yml
+    #   - Classpath: classpath:config/agent.yml
+    #   - Environment variable: ${AGENT_CONFIG_PATH}
+    #
+    agent-config-path: ${AGENT_CONFIG_PATH}
+    
+    # MCP client settings
+    mcp:
+      # Request timeout for MCP tool calls (in minutes)
+      # Long-running operations like terminal commands may need higher values
+      request-timeout-minutes: ${MCP_REQUEST_TIMEOUT_MINUTES:5}
+      
+      # Base path for session sandbox directories
+      # Each session creates a subdirectory: {sandbox-base-path}/{sessionId}/
+      # The directory is created on session start and cleaned up on session end.
+      # If not specified, defaults to the current working directory (user.dir)
+      #
+      # Examples:
+      #   - /var/agent-client/sandbox
+      #   - /tmp/agent-sessions
+      #
+      # Environment variable: MCP_SANDBOX_BASE_PATH
+      sandbox-base-path: ${MCP_SANDBOX_BASE_PATH:/tmp/agent-sessions}
+
+# Actuator endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# Logging configuration
+logging:
+  level:
+    root: INFO
+    com.davidparry.agent.client: DEBUG
+    io.modelcontextprotocol: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

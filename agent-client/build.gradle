@@ -1,0 +1,76 @@
+plugins {
+    id "java"
+    id "org.springframework.boot" version "3.4.1"
+    id "io.spring.dependency-management" version "1.1.7"
+}
+
+group = "com.davidparry"
+version = "0.0.1-SNAPSHOT"
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+repositories {
+    mavenLocal()  // For the shared agent-message-protocol library
+    mavenCentral()
+    maven { url "https://repo.spring.io/milestone" }
+    maven { url "https://repo.spring.io/snapshot" }
+}
+
+ext {
+    springAiVersion = "1.0.0-M6"
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    }
+}
+
+dependencies {
+    // Shared message protocol library
+    implementation "com.davidparry.agent:message-protocol:1.0.0"
+    
+    implementation "org.springframework.boot:spring-boot-starter-websocket"
+    implementation "org.springframework.boot:spring-boot-starter-validation"
+    implementation "org.springframework.boot:spring-boot-starter-actuator"
+    implementation "org.springframework.boot:spring-boot-starter-webflux"
+    annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
+    
+    // Spring AI MCP Client - for managing STDIO, HTTP, and SSE-based MCP servers
+    implementation "org.springframework.ai:spring-ai-mcp"
+    
+    // MCP SDK - explicitly set to latest version to support completions capability
+    implementation "io.modelcontextprotocol.sdk:mcp:0.17.0"
+    implementation "io.modelcontextprotocol.sdk:mcp-core:0.17.0"
+    implementation "io.modelcontextprotocol.sdk:mcp-json:0.17.0"
+    implementation "io.modelcontextprotocol.sdk:mcp-json-jackson2:0.17.0"
+    
+    // MCP WebFlux SSE transport for HTTP/SSE servers
+    implementation "io.modelcontextprotocol.sdk:mcp-spring-webflux:0.17.0"
+    
+    implementation "com.fasterxml.jackson.core:jackson-databind"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml"
+    
+    implementation "io.github.resilience4j:resilience4j-spring-boot3:2.2.0"
+    implementation "io.github.resilience4j:resilience4j-circuitbreaker:2.2.0"
+    implementation "io.github.resilience4j:resilience4j-retry:2.2.0"
+    
+    implementation "io.micrometer:micrometer-registry-prometheus"
+    
+    implementation "ch.qos.logback:logback-classic"
+    
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+}
+
+tasks.withType(JavaCompile) {
+    options.release = 21
+}

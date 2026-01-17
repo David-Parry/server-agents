@@ -1,0 +1,9 @@
+/.qodo/
+/admin-agents/admin-ui/.next/
+/admin-agents/admin-ui/node_modules/
+/agent-client/src/main/resources/application-local.yml
+/agent-client/example/agent.yml
+
+/spring-agents/data/
+/spring-agents/src/main/resources/application-local.yml
+/agent-client/src/main/resources/mcp.json
