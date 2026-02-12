@@ -43,7 +43,7 @@ POST {{baseUrl}}/api/agents/jira_agent/activate
 Content-Type: application/json
 
 {
-  "issueKey": "SCRUM-491",
+  "issueKey": "SCRUM-496",
   "git_repo_uri": "https://github.com/David-Parry/vetpet-clinic-demo.git"
 }
 

@@ -1,7 +1,10 @@
 plugins {
     id("org.springframework.boot") version "3.5.8"
     id("io.spring.dependency-management") version "1.1.7"
+    id("com.github.spotbugs") version "6.4.8"
     java
+    jacoco
+    checkstyle
 }
 
 group = "com.davidparry.agent"
@@ -69,4 +72,153 @@ dependencyManagement {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+// JaCoCo Configuration
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    
+    reports {
+        xml.required.set(true)
+        csv.required.set(false)
+        html.required.set(true)
+        html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/html"))
+    }
+    
+    // Exclude generated classes and configuration from coverage
+    classDirectories.setFrom(
+        files(classDirectories.files.map {
+            fileTree(it) {
+                exclude(
+                    "**/dto/**",
+                    "**/pojo/**",
+                    "**/entity/**",
+                    "**/config/**Config.class",
+                    "**/Application.class",
+                    "**/Application\$*.class"
+                )
+            }
+        })
+    )
+}
+
+tasks.jacocoTestCoverageVerification {
+    dependsOn(tasks.jacocoTestReport)
+    
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.55".toBigDecimal()
+            }
+        }
+        rule {
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = "0.35".toBigDecimal()
+            }
+        }
+        rule {
+            limit {
+                counter = "INSTRUCTION"
+                value = "COVEREDRATIO"
+                minimum = "0.55".toBigDecimal()
+            }
+        }
+        rule {
+            limit {
+                counter = "METHOD"
+                value = "COVEREDRATIO"
+                minimum = "0.60".toBigDecimal()
+            }
+        }
+        rule {
+            limit {
+                counter = "CLASS"
+                value = "COVEREDRATIO"
+                minimum = "0.75".toBigDecimal()
+            }
+        }
+    }
+    
+    // Exclude generated classes and configuration from coverage verification
+    classDirectories.setFrom(
+        files(classDirectories.files.map {
+            fileTree(it) {
+                exclude(
+                    "**/dto/**",
+                    "**/pojo/**",
+                    "**/entity/**",
+                    "**/config/**Config.class",
+                    "**/Application.class",
+                    "**/Application\$*.class"
+                )
+            }
+        })
+    )
+}
+
+// Make check task depend on coverage verification
+tasks.check {
+    dependsOn(tasks.jacocoTestCoverageVerification)
+}
+
+// Checkstyle Configuration
+checkstyle {
+    toolVersion = "10.21.4"
+    configFile = file("${rootDir}/config/checkstyle/checkstyle.xml")
+    isIgnoreFailures = false  // Report warnings but don't fail build
+    maxWarnings = Int.MAX_VALUE
+    maxErrors = 0
+}
+
+tasks.withType<Checkstyle> {
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
+// SpotBugs Configuration
+spotbugs {
+    ignoreFailures.set(false)  // Report issues but don't fail build
+    showStackTraces.set(true)
+    showProgress.set(true)
+    effort.set(com.github.spotbugs.snom.Effort.MAX)
+    reportLevel.set(com.github.spotbugs.snom.Confidence.LOW)
+    excludeFilter.set(file("${rootDir}/config/spotbugs/exclude.xml"))
+}
+
+tasks.withType<com.github.spotbugs.snom.SpotBugsTask> {
+    val taskName = name
+    reports.create("html") {
+        required.set(true)
+        outputLocation.set(layout.buildDirectory.file("reports/spotbugs/${taskName}.html"))
+    }
+    reports.create("xml") {
+        required.set(true)
+        outputLocation.set(layout.buildDirectory.file("reports/spotbugs/${taskName}.xml"))
+    }
+}
+
+// Token Hash Generator task for http-header-generator.sh
+tasks.register<JavaExec>("runTokenHashGenerator") {
+    group = "application"
+    description = "Runs the TokenHashGenerator utility to create token hashes"
+    mainClass.set("com.davidparry.agent.security.TokenHashGenerator")
+    classpath = sourceSets["main"].runtimeClasspath
+
+    args = listOf(
+        project.findProperty("tokenArg")?.toString() ?: "",
+        project.findProperty("customerIdArg")?.toString() ?: "",
+        project.findProperty("secretArg")?.toString() ?: "",
+        project.findProperty("secretVersionArg")?.toString() ?: "V1"
+    )
 }

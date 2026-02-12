@@ -7,3 +7,7 @@
 /spring-agents/data/
 /spring-agents/src/main/resources/application-local.yml
 /agent-client/src/main/resources/mcp.json
+
+# OS files
+.DS_Store
+**/._*

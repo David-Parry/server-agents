@@ -6,20 +6,36 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * JPA entity representing execution configuration for an agent type.
+ * JPA entity representing execution configuration for an agent type per customer.
  * Contains parameters like max tokens, temperature, timeouts, and retry settings.
+ * 
+ * This entity connects AgentConfigEntity (the agent definition) with CustomerEntity,
+ * allowing customer-specific execution parameters. When customer_id is NULL, this
+ * represents the default execution config for the agent type.
  */
 @Entity
-@Table(name = "agent_execution_config")
+@Table(name = "agent_execution_config",
+       uniqueConstraints = @UniqueConstraint(
+           name = "uk_agent_execution_config_agent_customer",
+           columnNames = {"agent_config_id", "customer_id"}
+       ))
 public class AgentExecutionConfigEntity {
     
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
     
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "agent_config_id", nullable = false, unique = true)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "agent_config_id", nullable = false)
     private AgentConfigEntity agentConfig;
+    
+    /**
+     * The customer this execution config belongs to.
+     * When NULL, this represents the default execution config for the agent type.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
+    private CustomerEntity customer;
     
     @Column(name = "max_tokens")
     private Integer maxTokens = 4096;
@@ -68,6 +84,21 @@ public class AgentExecutionConfigEntity {
     
     public void setAgentConfig(AgentConfigEntity agentConfig) { 
         this.agentConfig = agentConfig; 
+    }
+    
+    public CustomerEntity getCustomer() { 
+        return customer; 
+    }
+    
+    public void setCustomer(CustomerEntity customer) { 
+        this.customer = customer; 
+    }
+    
+    /**
+     * Checks if this is a default (global) execution config (no customer assigned).
+     */
+    public boolean isDefaultConfig() {
+        return customer == null;
     }
     
     public Integer getMaxTokens() { 

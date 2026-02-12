@@ -618,6 +618,3 @@ curl http://localhost:8080/actuator/metrics/mcp.connections.active
 
 This architecture allows the LLM to use tools that run on the client's machine, enabling secure access to local resources without exposing them to the server.
 
-## License
-
-[Your License Here]

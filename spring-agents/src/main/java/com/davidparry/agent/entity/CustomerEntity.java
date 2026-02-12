@@ -64,6 +64,10 @@ public class CustomerEntity {
                fetch = FetchType.LAZY, orphanRemoval = true)
     private List<CustomerModelAllowanceEntity> modelAllowances = new ArrayList<>();
     
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, 
+               fetch = FetchType.LAZY, orphanRemoval = true)
+    private List<AgentExecutionConfigEntity> executionConfigs = new ArrayList<>();
+    
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
     
@@ -150,6 +154,28 @@ public class CustomerEntity {
     
     public void setModelAllowances(List<CustomerModelAllowanceEntity> modelAllowances) { 
         this.modelAllowances = modelAllowances; 
+    }
+    
+    public List<AgentExecutionConfigEntity> getExecutionConfigs() { 
+        return executionConfigs; 
+    }
+    
+    public void setExecutionConfigs(List<AgentExecutionConfigEntity> executionConfigs) { 
+        this.executionConfigs = executionConfigs; 
+    }
+    
+    /**
+     * Gets the execution config for a specific agent config.
+     * Returns null if no customer-specific config exists for this agent.
+     */
+    public AgentExecutionConfigEntity getExecutionConfigForAgent(AgentConfigEntity agentConfig) {
+        if (agentConfig == null) {
+            return null;
+        }
+        return executionConfigs.stream()
+            .filter(ec -> agentConfig.equals(ec.getAgentConfig()))
+            .findFirst()
+            .orElse(null);
     }
     
     public LocalDateTime getCreatedAt() { 

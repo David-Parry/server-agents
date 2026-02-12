@@ -2,6 +2,7 @@ package com.davidparry.agent.controller;
 
 import com.davidparry.agent.dto.*;
 import com.davidparry.agent.entity.*;
+import com.davidparry.agent.protocol.dto.AgentType;
 import com.davidparry.agent.repository.*;
 import com.davidparry.agent.service.*;
 import com.davidparry.agent.session.ClientConnection;
@@ -52,6 +53,8 @@ public class AdminController {
     private final SecurityAuditService auditService;
     private final CustomerUsageService customerUsageService;
     private final ConnectionManager connectionManager;
+    private final AgentConfigRepository agentConfigRepository;
+    private final CustomerAgentTypeRepository customerAgentTypeRepository;
 
     public AdminController(
             AdminService adminService,
@@ -64,7 +67,9 @@ public class AdminController {
             SecurityAuditLogRepository auditLogRepository,
             SecurityAuditService auditService,
             CustomerUsageService customerUsageService,
-            ConnectionManager connectionManager) {
+            ConnectionManager connectionManager,
+            AgentConfigRepository agentConfigRepository,
+            CustomerAgentTypeRepository customerAgentTypeRepository) {
         this.adminService = adminService;
         this.customerRepository = customerRepository;
         this.tokenRepository = tokenRepository;
@@ -76,6 +81,8 @@ public class AdminController {
         this.auditService = auditService;
         this.customerUsageService = customerUsageService;
         this.connectionManager = connectionManager;
+        this.agentConfigRepository = agentConfigRepository;
+        this.customerAgentTypeRepository = customerAgentTypeRepository;
     }
 
     // ==================== Customer Management ====================
@@ -791,6 +798,551 @@ public class AdminController {
         ));
     }
 
+    // ==================== Agent Type Management ====================
+
+    @Operation(
+        summary = "List all agent types",
+        description = "Returns all agent type configurations including disabled ones."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved agent type list"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - invalid or missing admin token")
+    })
+    @Tag(name = "Admin - Agent Types")
+    @GetMapping("/agent-types")
+    @Transactional(readOnly = true)
+    public ResponseEntity<List<AgentConfigResponse>> listAllAgentTypes() {
+        List<AgentConfigResponse> agentTypes = agentConfigRepository.findAll().stream()
+            .map(this::toAgentConfigResponse)
+            .toList();
+        return ResponseEntity.ok(agentTypes);
+    }
+
+    @Operation(
+        summary = "Get agent type details",
+        description = "Returns detailed information about a specific agent type configuration."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved agent type"),
+        @ApiResponse(responseCode = "400", description = "Invalid agent type"),
+        @ApiResponse(responseCode = "404", description = "Agent type not found"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - invalid or missing admin token")
+    })
+    @Tag(name = "Admin - Agent Types")
+    @GetMapping("/agent-types/{agentType}")
+    @Transactional(readOnly = true)
+    public ResponseEntity<AgentConfigResponse> getAgentType(
+            @Parameter(description = "Agent type (e.g., ANALYST, ENGINEER, REVIEWER, DIAGNOSTICIAN)") 
+            @PathVariable String agentType) {
+        try {
+            AgentType type = AgentType.valueOf(agentType.toUpperCase());
+            return agentConfigRepository.findByAgentType(type)
+                .map(this::toAgentConfigResponse)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @Operation(
+        summary = "Update agent type configuration",
+        description = "Updates an agent type's name, description, system prompt, model, or execution settings."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Agent type successfully updated"),
+        @ApiResponse(responseCode = "400", description = "Invalid agent type or model not found"),
+        @ApiResponse(responseCode = "404", description = "Agent type not found"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - invalid or missing admin token")
+    })
+    @Tag(name = "Admin - Agent Types")
+    @PutMapping("/agent-types/{agentType}")
+    @Transactional
+    public ResponseEntity<AgentConfigResponse> updateAgentType(
+            @Parameter(description = "Agent type") @PathVariable String agentType,
+            @RequestBody UpdateAgentConfigRequest request) {
+        
+        AgentType type;
+        try {
+            type = AgentType.valueOf(agentType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        Optional<AgentConfigEntity> configOpt = agentConfigRepository.findByAgentType(type);
+        if (configOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        AgentConfigEntity config = configOpt.get();
+        
+        if (request.name() != null) {
+            config.setName(request.name());
+        }
+        if (request.description() != null) {
+            config.setDescription(request.description());
+        }
+        if (request.systemPrompt() != null) {
+            config.setSystemPrompt(request.systemPrompt());
+        }
+        if (request.model() != null) {
+            LlmModelEntity model = modelRepository.findById(request.model()).orElse(null);
+            if (model == null) {
+                return ResponseEntity.badRequest().build();
+            }
+            config.setLlmModel(model);
+        }
+        if (request.enabled() != null) {
+            config.setEnabled(request.enabled());
+        }
+        
+        // Update default execution config if provided
+        AgentExecutionConfigEntity execConfig = config.getDefaultExecutionConfig();
+        if (execConfig != null) {
+            if (request.maxTokens() != null) {
+                execConfig.setMaxTokens(request.maxTokens());
+            }
+            if (request.temperature() != null) {
+                execConfig.setTemperature(request.temperature());
+            }
+            if (request.timeoutSeconds() != null) {
+                execConfig.setTimeoutSeconds(request.timeoutSeconds());
+            }
+            if (request.retryAttempts() != null) {
+                execConfig.setRetryAttempts(request.retryAttempts());
+            }
+            if (request.retryDelayMs() != null) {
+                execConfig.setRetryDelayMs(request.retryDelayMs());
+            }
+        }
+        
+        config.setVersion(config.getVersion() + 1);
+        config = agentConfigRepository.save(config);
+        
+        auditService.logAdminAction(
+            SecurityAuditLogEntity.EventType.ADMIN_AGENT_CONFIG_UPDATED,
+            "Agent config updated: " + agentType,
+            null
+        );
+        
+        return ResponseEntity.ok(toAgentConfigResponse(config));
+    }
+
+    @Operation(
+        summary = "Disable agent type",
+        description = "Disables an agent type. Disabled agent types cannot be used for new requests."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Agent type successfully disabled"),
+        @ApiResponse(responseCode = "400", description = "Invalid agent type"),
+        @ApiResponse(responseCode = "404", description = "Agent type not found"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - invalid or missing admin token")
+    })
+    @Tag(name = "Admin - Agent Types")
+    @DeleteMapping("/agent-types/{agentType}")
+    @Transactional
+    public ResponseEntity<AgentConfigResponse> disableAgentType(
+            @Parameter(description = "Agent type") @PathVariable String agentType) {
+        
+        AgentType type;
+        try {
+            type = AgentType.valueOf(agentType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        return agentConfigRepository.findByAgentType(type)
+            .map(config -> {
+                config.setEnabled(false);
+                config = agentConfigRepository.save(config);
+                
+                auditService.logAdminAction(
+                    SecurityAuditLogEntity.EventType.ADMIN_AGENT_CONFIG_DISABLED,
+                    "Agent config disabled: " + agentType,
+                    null
+                );
+                
+                return ResponseEntity.ok(toAgentConfigResponse(config));
+            })
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    @Operation(
+        summary = "Enable agent type",
+        description = "Enables a previously disabled agent type."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Agent type successfully enabled"),
+        @ApiResponse(responseCode = "400", description = "Invalid agent type"),
+        @ApiResponse(responseCode = "404", description = "Agent type not found"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - invalid or missing admin token")
+    })
+    @Tag(name = "Admin - Agent Types")
+    @PostMapping("/agent-types/{agentType}/enable")
+    @Transactional
+    public ResponseEntity<AgentConfigResponse> enableAgentType(
+            @Parameter(description = "Agent type") @PathVariable String agentType) {
+        
+        AgentType type;
+        try {
+            type = AgentType.valueOf(agentType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        return agentConfigRepository.findByAgentType(type)
+            .map(config -> {
+                config.setEnabled(true);
+                config = agentConfigRepository.save(config);
+                
+                auditService.logAdminAction(
+                    SecurityAuditLogEntity.EventType.ADMIN_AGENT_CONFIG_ENABLED,
+                    "Agent config enabled: " + agentType,
+                    null
+                );
+                
+                return ResponseEntity.ok(toAgentConfigResponse(config));
+            })
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    // ==================== Customer Agent Type Assignments ====================
+
+    @Operation(
+        summary = "Get customer's agent types",
+        description = "Returns all agent types assigned to a specific customer."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved customer's agent types"),
+        @ApiResponse(responseCode = "404", description = "Customer not found"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - invalid or missing admin token")
+    })
+    @Tag(name = "Admin - Customer Agent Types")
+    @GetMapping("/customers/{customerId}/agent-types")
+    public ResponseEntity<CustomerAgentTypesResponse> getCustomerAgentTypes(
+            @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId) {
+        
+        Optional<CustomerEntity> customerOpt = customerRepository.findByCustomerId(customerId);
+        if (customerOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        CustomerEntity customer = customerOpt.get();
+        List<CustomerAgentTypeEntity> assignments = 
+            customerAgentTypeRepository.findByCustomerCustomerId(customerId);
+        
+        List<CustomerAgentTypeResponse> responses = assignments.stream()
+            .map(this::toCustomerAgentTypeResponse)
+            .toList();
+        
+        int enabledCount = (int) assignments.stream().filter(CustomerAgentTypeEntity::isEnabled).count();
+        
+        return ResponseEntity.ok(new CustomerAgentTypesResponse(
+            customerId,
+            customer.getName(),
+            responses.size(),
+            enabledCount,
+            responses
+        ));
+    }
+
+    @Operation(
+        summary = "Assign agent type to customer",
+        description = "Assigns an agent type to a customer, optionally with custom token limit and priority."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Agent type successfully assigned"),
+        @ApiResponse(responseCode = "400", description = "Invalid agent type"),
+        @ApiResponse(responseCode = "404", description = "Customer not found"),
+        @ApiResponse(responseCode = "409", description = "Agent type already assigned to customer"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - invalid or missing admin token")
+    })
+    @Tag(name = "Admin - Customer Agent Types")
+    @PostMapping("/customers/{customerId}/agent-types")
+    @Transactional
+    public ResponseEntity<CustomerAgentTypeResponse> assignAgentTypeToCustomer(
+            @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
+            @RequestBody AssignAgentTypeRequest request) {
+        
+        Optional<CustomerEntity> customerOpt = customerRepository.findByCustomerId(customerId);
+        if (customerOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        AgentType agentType;
+        try {
+            agentType = AgentType.valueOf(request.agentType().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        // Check if already assigned
+        if (customerAgentTypeRepository.existsByCustomerCustomerIdAndAgentType(customerId, agentType)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
+        
+        CustomerEntity customer = customerOpt.get();
+        
+        CustomerAgentTypeEntity assignment = new CustomerAgentTypeEntity();
+        assignment.setCustomer(customer);
+        assignment.setAgentType(agentType);
+        assignment.setEnabled(true);
+        assignment.setCustomTokenLimit(request.customTokenLimit());
+        assignment.setPriority(request.priority() != null ? request.priority() : 0);
+        
+        assignment = customerAgentTypeRepository.save(assignment);
+        
+        auditService.logAdminCustomerAction(
+            SecurityAuditLogEntity.EventType.ADMIN_CUSTOMER_AGENT_TYPE_ASSIGNED,
+            customerId,
+            "Agent type assigned: " + agentType
+        );
+        
+        return ResponseEntity.status(HttpStatus.CREATED).body(toCustomerAgentTypeResponse(assignment));
+    }
+
+    @Operation(
+        summary = "Update customer's agent type assignment",
+        description = "Updates the enabled status, custom token limit, or priority for a customer's agent type assignment."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Assignment successfully updated"),
+        @ApiResponse(responseCode = "400", description = "Invalid agent type"),
+        @ApiResponse(responseCode = "404", description = "Customer or assignment not found"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - invalid or missing admin token")
+    })
+    @Tag(name = "Admin - Customer Agent Types")
+    @PutMapping("/customers/{customerId}/agent-types/{agentType}")
+    @Transactional
+    public ResponseEntity<CustomerAgentTypeResponse> updateCustomerAgentType(
+            @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
+            @Parameter(description = "Agent type") @PathVariable String agentType,
+            @RequestBody UpdateCustomerAgentTypeRequest request) {
+        
+        AgentType type;
+        try {
+            type = AgentType.valueOf(agentType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        return customerAgentTypeRepository.findByCustomerCustomerIdAndAgentType(customerId, type)
+            .map(assignment -> {
+                if (request.enabled() != null) {
+                    assignment.setEnabled(request.enabled());
+                }
+                if (request.customTokenLimit() != null) {
+                    assignment.setCustomTokenLimit(request.customTokenLimit());
+                }
+                if (request.priority() != null) {
+                    assignment.setPriority(request.priority());
+                }
+                
+                assignment = customerAgentTypeRepository.save(assignment);
+                
+                auditService.logAdminCustomerAction(
+                    SecurityAuditLogEntity.EventType.ADMIN_CUSTOMER_AGENT_TYPE_UPDATED,
+                    customerId,
+                    "Agent type assignment updated: " + agentType
+                );
+                
+                return ResponseEntity.ok(toCustomerAgentTypeResponse(assignment));
+            })
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    @Operation(
+        summary = "Remove agent type from customer",
+        description = "Removes an agent type assignment from a customer."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Agent type successfully removed"),
+        @ApiResponse(responseCode = "400", description = "Invalid agent type"),
+        @ApiResponse(responseCode = "404", description = "Customer or assignment not found"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - invalid or missing admin token")
+    })
+    @Tag(name = "Admin - Customer Agent Types")
+    @DeleteMapping("/customers/{customerId}/agent-types/{agentType}")
+    @Transactional
+    public ResponseEntity<Void> removeAgentTypeFromCustomer(
+            @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
+            @Parameter(description = "Agent type") @PathVariable String agentType) {
+        
+        AgentType type;
+        try {
+            type = AgentType.valueOf(agentType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        int deleted = customerAgentTypeRepository.deleteByCustomerCustomerIdAndAgentType(customerId, type);
+        
+        if (deleted == 0) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        auditService.logAdminCustomerAction(
+            SecurityAuditLogEntity.EventType.ADMIN_CUSTOMER_AGENT_TYPE_REMOVED,
+            customerId,
+            "Agent type removed: " + agentType
+        );
+        
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+        summary = "Bulk assign agent types to customer",
+        description = "Assigns multiple agent types to a customer at once. Skips already assigned types."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Agent types successfully assigned"),
+        @ApiResponse(responseCode = "400", description = "Invalid agent type in list"),
+        @ApiResponse(responseCode = "404", description = "Customer not found"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - invalid or missing admin token")
+    })
+    @Tag(name = "Admin - Customer Agent Types")
+    @PostMapping("/customers/{customerId}/agent-types/bulk")
+    @Transactional
+    public ResponseEntity<CustomerAgentTypesResponse> bulkAssignAgentTypes(
+            @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
+            @RequestBody BulkAssignAgentTypesRequest request) {
+        
+        Optional<CustomerEntity> customerOpt = customerRepository.findByCustomerId(customerId);
+        if (customerOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        CustomerEntity customer = customerOpt.get();
+        List<CustomerAgentTypeEntity> newAssignments = new ArrayList<>();
+        
+        for (String agentTypeStr : request.agentTypes()) {
+            AgentType agentType;
+            try {
+                agentType = AgentType.valueOf(agentTypeStr.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().build();
+            }
+            
+            // Skip if already assigned
+            if (customerAgentTypeRepository.existsByCustomerCustomerIdAndAgentType(customerId, agentType)) {
+                continue;
+            }
+            
+            CustomerAgentTypeEntity assignment = new CustomerAgentTypeEntity();
+            assignment.setCustomer(customer);
+            assignment.setAgentType(agentType);
+            assignment.setEnabled(true);
+            assignment.setCustomTokenLimit(request.defaultCustomTokenLimit());
+            assignment.setPriority(request.defaultPriority() != null ? request.defaultPriority() : 0);
+            
+            newAssignments.add(customerAgentTypeRepository.save(assignment));
+        }
+        
+        auditService.logAdminCustomerAction(
+            SecurityAuditLogEntity.EventType.ADMIN_CUSTOMER_AGENT_TYPES_BULK_ASSIGNED,
+            customerId,
+            String.format("Bulk assigned %d agent types", newAssignments.size())
+        );
+        
+        // Return updated list
+        List<CustomerAgentTypeEntity> allAssignments = 
+            customerAgentTypeRepository.findByCustomerCustomerId(customerId);
+        
+        List<CustomerAgentTypeResponse> responses = allAssignments.stream()
+            .map(this::toCustomerAgentTypeResponse)
+            .toList();
+        
+        int enabledCount = (int) allAssignments.stream().filter(CustomerAgentTypeEntity::isEnabled).count();
+        
+        return ResponseEntity.ok(new CustomerAgentTypesResponse(
+            customerId,
+            customer.getName(),
+            responses.size(),
+            enabledCount,
+            responses
+        ));
+    }
+
+    @Operation(
+        summary = "Get customers by agent type",
+        description = "Returns all customers assigned to a specific agent type."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved customers"),
+        @ApiResponse(responseCode = "400", description = "Invalid agent type"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - invalid or missing admin token")
+    })
+    @Tag(name = "Admin - Customer Agent Types")
+    @GetMapping("/agent-types/{agentType}/customers")
+    public ResponseEntity<AgentTypeCustomersResponse> getCustomersByAgentType(
+            @Parameter(description = "Agent type") @PathVariable String agentType) {
+        
+        AgentType type;
+        try {
+            type = AgentType.valueOf(agentType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        List<CustomerAgentTypeEntity> assignments = customerAgentTypeRepository.findByAgentType(type);
+        
+        List<CustomerAgentTypeResponse> responses = assignments.stream()
+            .map(this::toCustomerAgentTypeResponse)
+            .toList();
+        
+        int enabledCount = (int) assignments.stream()
+            .filter(a -> a.isEnabled() && a.getCustomer().isEnabled())
+            .count();
+        
+        // Get agent name from config
+        String agentName = agentConfigRepository.findByAgentType(type)
+            .map(AgentConfigEntity::getName)
+            .orElse(type.name());
+        
+        return ResponseEntity.ok(new AgentTypeCustomersResponse(
+            type.name(),
+            agentName,
+            responses.size(),
+            enabledCount,
+            responses
+        ));
+    }
+
+    @Operation(
+        summary = "Get agent type statistics",
+        description = "Returns statistics about customer assignments per agent type."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved statistics"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - invalid or missing admin token")
+    })
+    @Tag(name = "Admin - Customer Agent Types")
+    @GetMapping("/agent-types/stats")
+    public ResponseEntity<AgentTypeStatisticsResponse> getAgentTypeStatistics() {
+        List<Object[]> counts = customerAgentTypeRepository.countCustomersByAgentType();
+        
+        Map<String, Long> customerCountByAgentType = new HashMap<>();
+        long total = 0;
+        
+        for (Object[] row : counts) {
+            String type = ((AgentType) row[0]).name();
+            Long count = ((Number) row[1]).longValue();
+            customerCountByAgentType.put(type, count);
+            total += count;
+        }
+        
+        // Include all agent types, even those with 0 customers
+        for (AgentType type : AgentType.values()) {
+            customerCountByAgentType.putIfAbsent(type.name(), 0L);
+        }
+        
+        return ResponseEntity.ok(new AgentTypeStatisticsResponse(
+            customerCountByAgentType,
+            total,
+            AgentType.values().length
+        ));
+    }
+
     // ==================== Helper Methods ====================
 
     private AdminCustomerSummaryResponse toAdminCustomerSummary(CustomerEntity customer) {
@@ -924,6 +1476,57 @@ public class AdminController {
             log.getActorType().name(),
             log.getActorId(),
             log.getCreatedAt()
+        );
+    }
+
+    private AgentConfigResponse toAgentConfigResponse(AgentConfigEntity config) {
+        AgentConfigResponse.ExecutionConfigResponse execConfigResponse = null;
+        AgentExecutionConfigEntity execConfig = config.getDefaultExecutionConfig();
+        if (execConfig != null) {
+            execConfigResponse = new AgentConfigResponse.ExecutionConfigResponse(
+                execConfig.getMaxTokens(),
+                execConfig.getTemperature(),
+                execConfig.getTimeoutSeconds(),
+                execConfig.getRetryAttempts(),
+                execConfig.getRetryDelayMs()
+            );
+        }
+        
+        LlmModelEntity model = config.getLlmModel();
+        return new AgentConfigResponse(
+            config.getId(),
+            config.getAgentType().name(),
+            config.getName(),
+            config.getDescription(),
+            model != null ? model.getModel() : null,
+            model != null ? model.getDisplayName() : null,
+            config.isEnabled(),
+            config.getVersion(),
+            execConfigResponse,
+            config.getCreatedAt(),
+            config.getUpdatedAt()
+        );
+    }
+
+    private CustomerAgentTypeResponse toCustomerAgentTypeResponse(CustomerAgentTypeEntity assignment) {
+        CustomerEntity customer = assignment.getCustomer();
+        
+        // Get agent name from config
+        String agentName = agentConfigRepository.findByAgentType(assignment.getAgentType())
+            .map(AgentConfigEntity::getName)
+            .orElse(assignment.getAgentType().name());
+        
+        return new CustomerAgentTypeResponse(
+            assignment.getId(),
+            customer.getCustomerId(),
+            customer.getName(),
+            assignment.getAgentType().name(),
+            agentName,
+            assignment.isEnabled(),
+            assignment.getCustomTokenLimit(),
+            assignment.getPriority(),
+            assignment.getCreatedAt(),
+            assignment.getUpdatedAt()
         );
     }
 }

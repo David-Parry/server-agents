@@ -43,9 +43,9 @@ public class AgentConfigEntity {
     @Column(columnDefinition = "CLOB")
     private String metadata;
     
-    @OneToOne(mappedBy = "agentConfig", cascade = CascadeType.ALL, 
-              fetch = FetchType.LAZY, orphanRemoval = true)
-    private AgentExecutionConfigEntity executionConfig;
+    @OneToMany(mappedBy = "agentConfig", cascade = CascadeType.ALL, 
+               fetch = FetchType.LAZY, orphanRemoval = true)
+    private java.util.List<AgentExecutionConfigEntity> executionConfigs = new java.util.ArrayList<>();
     
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -145,12 +145,37 @@ public class AgentConfigEntity {
         this.metadata = metadata; 
     }
     
-    public AgentExecutionConfigEntity getExecutionConfig() { 
-        return executionConfig; 
+    public java.util.List<AgentExecutionConfigEntity> getExecutionConfigs() { 
+        return executionConfigs; 
     }
     
-    public void setExecutionConfig(AgentExecutionConfigEntity executionConfig) { 
-        this.executionConfig = executionConfig; 
+    public void setExecutionConfigs(java.util.List<AgentExecutionConfigEntity> executionConfigs) { 
+        this.executionConfigs = executionConfigs; 
+    }
+    
+    /**
+     * Gets the default execution config (where customer is null).
+     * Returns null if no default config exists.
+     */
+    public AgentExecutionConfigEntity getDefaultExecutionConfig() {
+        return executionConfigs.stream()
+            .filter(AgentExecutionConfigEntity::isDefaultConfig)
+            .findFirst()
+            .orElse(null);
+    }
+    
+    /**
+     * Gets the execution config for a specific customer.
+     * Falls back to default config if no customer-specific config exists.
+     */
+    public AgentExecutionConfigEntity getExecutionConfigForCustomer(CustomerEntity customer) {
+        if (customer == null) {
+            return getDefaultExecutionConfig();
+        }
+        return executionConfigs.stream()
+            .filter(ec -> customer.equals(ec.getCustomer()))
+            .findFirst()
+            .orElseGet(this::getDefaultExecutionConfig);
     }
     
     public LocalDateTime getCreatedAt() { 

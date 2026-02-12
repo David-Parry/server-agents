@@ -37,9 +37,18 @@ public interface AgentConfigRepository extends JpaRepository<AgentConfigEntity, 
     boolean existsByAgentType(AgentType agentType);
     
     /**
-     * Find agent configuration with execution config eagerly loaded.
+     * Find agent configuration with execution configs eagerly loaded.
      */
-    @Query("SELECT a FROM AgentConfigEntity a LEFT JOIN FETCH a.executionConfig " +
+    @Query("SELECT a FROM AgentConfigEntity a LEFT JOIN FETCH a.executionConfigs " +
            "WHERE a.agentType = :agentType AND a.enabled = true")
-    Optional<AgentConfigEntity> findByAgentTypeWithExecutionConfig(AgentType agentType);
+    Optional<AgentConfigEntity> findByAgentTypeWithExecutionConfigs(AgentType agentType);
+    
+    /**
+     * Find agent configuration with default execution config (where customer is null).
+     */
+    @Query("SELECT DISTINCT a FROM AgentConfigEntity a " +
+           "LEFT JOIN FETCH a.executionConfigs ec " +
+           "WHERE a.agentType = :agentType AND a.enabled = true " +
+           "AND (ec IS NULL OR ec.customer IS NULL)")
+    Optional<AgentConfigEntity> findByAgentTypeWithDefaultExecutionConfig(AgentType agentType);
 }

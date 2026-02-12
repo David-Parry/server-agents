@@ -63,6 +63,12 @@ class AdminControllerTest {
     
     @Mock
     private ConnectionManager connectionManager;
+    
+    @Mock
+    private AgentConfigRepository agentConfigRepository;
+    
+    @Mock
+    private CustomerAgentTypeRepository customerAgentTypeRepository;
 
     private AdminController controller;
 
@@ -79,7 +85,9 @@ class AdminControllerTest {
             auditLogRepository,
             auditService,
             customerUsageService,
-            connectionManager
+            connectionManager,
+            agentConfigRepository,
+            customerAgentTypeRepository
         );
     }
 

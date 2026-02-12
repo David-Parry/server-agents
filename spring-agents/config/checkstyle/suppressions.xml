@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+        "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+        "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+
+<suppressions>
+    <!-- Suppress all checks for test files -->
+    <suppress checks=".*" files=".*Test\.java$"/>
+    <suppress checks=".*" files=".*Tests\.java$"/>
+    <suppress checks=".*" files=".*/test/.*"/>
+
+    <!-- Suppress Javadoc checks for DTOs, entities, and POJOs -->
+    <suppress checks="MissingJavadocMethod" files=".*/(dto|entity|pojo)/.*\.java$"/>
+    <suppress checks="JavadocMethod" files=".*/(dto|entity|pojo)/.*\.java$"/>
+    <suppress checks="JavadocType" files=".*/(dto|entity|pojo)/.*\.java$"/>
+
+    <!-- Suppress Javadoc checks for Spring configuration classes -->
+    <suppress checks="MissingJavadocMethod" files=".*Config\.java$"/>
+    <suppress checks="JavadocMethod" files=".*Config\.java$"/>
+
+    <!-- Suppress utility class constructor check for Spring Application class -->
+    <suppress checks="HideUtilityClassConstructor" files="Application\.java$"/>
+
+    <!-- Suppress line length for imports -->
+    <suppress checks="LineLength" files=".*\.java$" lines="^import "/>
+
+    <!-- Suppress magic number checks for common values in tests -->
+    <suppress checks="MagicNumber" files=".*Test\.java$"/>
+</suppressions>
