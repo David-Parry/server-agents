@@ -9,7 +9,7 @@ A comprehensive **AI Agent Platform** designed to enable remote AI agents to aug
 - [Components](#components)
   - [spring-agents (Server)](#spring-agents-server)
   - [agent-client (Client)](#agent-client-client)
-  - [admin-agents (Admin Portal)](#admin-agents-admin-portal)
+  - [admin-client-spring-agents (Admin Portal)](#admin-client-spring-agents-admin-portal)
   - [agent-message-protocol (Shared Library)](#agent-message-protocol-shared-library)
 - [Agent Types](#agent-types)
 - [Quick Start](#quick-start)
@@ -29,7 +29,7 @@ A comprehensive **AI Agent Platform** designed to enable remote AI agents to aug
 |-----------|---------|
 | **spring-agents** | Central server hosting LLM integrations (Anthropic Claude, Ollama) with customer management, token usage tracking, and policy enforcement |
 | **agent-client** | Runs on developer machines, connecting to the server via WebSocket and executing tools locally through the Model Context Protocol (MCP) |
-| **admin-agents** | Web application for administrators to manage customers, monitor usage, and configure the platform |
+| **admin-client-spring-agents** | Web application for administrators to manage customers, monitor usage, and configure the platform |
 | **agent-message-protocol** | Shared Java library defining the WebSocket message protocol between client and server |
 
 ### Key Features
@@ -47,7 +47,7 @@ A comprehensive **AI Agent Platform** designed to enable remote AI agents to aug
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              ADMIN PORTAL (admin-agents)                         │
+│                        ADMIN PORTAL (admin-client-spring-agents)                 │
 │                         Next.js Web Application (Port 3000)                      │
 │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌────────────┐ │
 │  │ Dashboard   │ │ Customers   │ │ Models      │ │ Policies    │ │ Audit Logs │ │
@@ -166,7 +166,7 @@ A Spring Boot application that runs on developer machines, bridging local tools 
 
 ---
 
-### admin-agents (Admin Portal)
+### admin-client-spring-agents (Admin Portal)
 
 A Next.js web application for platform administration.
 
@@ -183,7 +183,7 @@ A Next.js web application for platform administration.
 
 **Tech Stack:** Next.js 15, TypeScript, Tailwind CSS, React Query
 
-📖 [Full admin-agents documentation](./admin-agents/admin-ui/README.md)
+📖 [Full admin-client-spring-agents documentation](./admin-client-spring-agents/admin-ui/README.md)
 
 ---
 
@@ -279,10 +279,10 @@ export AGENT_JWT_SIGNING_KEY=$(openssl rand -base64 48)
 
 The server will start on `http://localhost:8080` with WebSocket endpoint at `ws://localhost:8080/agent`.
 
-### 2. Start the Admin Portal (admin-agents)
+### 2. Start the Admin Portal (admin-client-spring-agents)
 
 ```bash
-cd admin-agents/admin-ui
+cd admin-client-spring-agents/admin-ui
 
 # Install dependencies
 npm install
@@ -505,11 +505,11 @@ server-agents/
 │   ├── src/main/resources/  # Configuration files
 │   └── README.md
 │
-├── admin-agents/            # Admin portal
-│   └── admin-ui/            # Next.js application
-│       ├── src/app/         # App router pages
-│       ├── src/components/  # React components
-│       ├── src/lib/         # Utilities and API client
+├── admin-client-spring-agents/  # Admin portal
+│   └── admin-ui/                # Next.js application
+│       ├── src/app/             # App router pages
+│       ├── src/components/      # React components
+│       ├── src/lib/             # Utilities and API client
 │       └── README.md
 │
 ├── agent-message-protocol/  # Shared message library
@@ -536,7 +536,7 @@ cd agent-client && ./gradlew build
 cd agent-message-protocol && ./gradlew build
 
 # Build admin-ui
-cd admin-agents/admin-ui && npm run build
+cd admin-client-spring-agents/admin-ui && npm run build
 ```
 
 ### Running Tests
