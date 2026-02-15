@@ -1,15 +1,22 @@
+.gradle/
 /.qodo/
 /admin-client-spring-agents/admin-ui/.next/
 /admin-client-spring-agents/admin-ui/node_modules/
-/agent-client/src/main/resources/application-local.yml
-/agent-client/example/agent.yml
+/agent-sdk/src/main/resources/application-local.yml
+/agent-sdk/example/agent.yml
 
 /spring-agents/data/
 /spring-agents/src/main/resources/application-local.yml
-/agent-client/src/main/resources/mcp.json
+/agent-sdk/src/main/resources/mcp.json
 
 # OS files
 .DS_Store
 **/._*
 /plan-mono.md
 /.claude/
+/build/
+/.gradle/
+/agent-message-protocol/.qodo/
+/logs/
+admin-client-spring-agents/.qodo
+admin-client-spring-agents/

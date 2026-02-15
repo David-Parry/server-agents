@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Represents a WebSocket connection from a remote agent-client.
+ * Represents a WebSocket connection from a remote agent-sdk instance.
  * Manages multiple concurrent prompt sessions within a single connection.
  */
 public final class ClientConnection {

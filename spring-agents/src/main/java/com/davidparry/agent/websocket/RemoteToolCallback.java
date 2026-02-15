@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * ToolCallback implementation that proxies tool calls to a remote agent-client.
+ * ToolCallback implementation that proxies tool calls to a remote agent-sdk instance.
  * This is the critical bridge between Spring AI's tool system and remote execution.
  *
  * <p>Tool names use the format "server-toolname" (e.g., "terminal-list_files") which is

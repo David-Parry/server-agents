@@ -12,7 +12,6 @@ version = "0.0.1-SNAPSHOT"
 java.sourceCompatibility = JavaVersion.VERSION_21
 
 repositories {
-    mavenLocal()
     mavenCentral()
 }
 
@@ -20,7 +19,7 @@ extra["springAiVersion"] = "1.1.2"
 
 dependencies {
     // Shared message protocol library
-    implementation("com.davidparry.agent:message-protocol:1.0.0")
+    implementation(project(":agent-message-protocol"))
 
     // Core Spring Boot
     implementation("org.springframework.boot:spring-boot-starter-actuator")
@@ -173,7 +172,7 @@ tasks.check {
 // Checkstyle Configuration
 checkstyle {
     toolVersion = "10.21.4"
-    configFile = file("${rootDir}/config/checkstyle/checkstyle.xml")
+    configFile = file("${projectDir}/config/checkstyle/checkstyle.xml")
 }
 
 tasks.withType<Checkstyle> {
@@ -201,7 +200,7 @@ spotbugs {
     showProgress.set(true)
     effort.set(com.github.spotbugs.snom.Effort.MAX)
     reportLevel.set(com.github.spotbugs.snom.Confidence.LOW)
-    excludeFilter.set(file("${rootDir}/config/spotbugs/exclude.xml"))
+    excludeFilter.set(file("${projectDir}/config/spotbugs/exclude.xml"))
 }
 
 tasks.withType<com.github.spotbugs.snom.SpotBugsTask> {

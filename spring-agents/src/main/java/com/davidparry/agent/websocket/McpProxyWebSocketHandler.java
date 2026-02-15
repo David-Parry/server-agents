@@ -51,7 +51,7 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * WebSocket handler for MCP Proxy connections.
- * Handles all message routing between the server and remote agent-clients.
+ * Handles all message routing between the server and remote agent-sdk instances.
  */
 @Component
 public class McpProxyWebSocketHandler extends TextWebSocketHandler {

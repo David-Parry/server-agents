@@ -8,7 +8,7 @@ A comprehensive **AI Agent Platform** designed to enable remote AI agents to aug
 - [Architecture](#architecture)
 - [Components](#components)
   - [spring-agents (Server)](#spring-agents-server)
-  - [agent-client (Client)](#agent-client-client)
+  - [agent-sdk (Client)](#agent-sdk-client)
   - [admin-client-spring-agents (Admin Portal)](#admin-client-spring-agents-admin-portal)
   - [agent-message-protocol (Shared Library)](#agent-message-protocol-shared-library)
 - [Agent Types](#agent-types)
@@ -28,7 +28,7 @@ A comprehensive **AI Agent Platform** designed to enable remote AI agents to aug
 | Component | Purpose |
 |-----------|---------|
 | **spring-agents** | Central server hosting LLM integrations (Anthropic Claude, Ollama) with customer management, token usage tracking, and policy enforcement |
-| **agent-client** | Runs on developer machines, connecting to the server via WebSocket and executing tools locally through the Model Context Protocol (MCP) |
+| **agent-sdk** | Runs on developer machines, connecting to the server via WebSocket and executing tools locally through the Model Context Protocol (MCP) |
 | **admin-client-spring-agents** | Web application for administrators to manage customers, monitor usage, and configure the platform |
 | **agent-message-protocol** | Shared Java library defining the WebSocket message protocol between client and server |
 
@@ -121,7 +121,7 @@ The central hub that orchestrates AI agent interactions.
 |---------|-------------|
 | WebSocket Server | Accepts connections at `/agent` endpoint with API key authentication |
 | Multi-LLM Support | Integrates with Anthropic (Claude) and Ollama via Spring AI |
-| Remote Tool Execution | Proxies tool calls to connected agent-clients |
+| Remote Tool Execution | Proxies tool calls to connected agent-sdk instances |
 | Customer Management | Multi-tenant support with per-customer token allowances |
 | Usage Tracking | Per-model token usage with configurable reset policies |
 | Security | JWT tokens, API key hashing (versioned secrets), audit logging |
@@ -140,7 +140,7 @@ The central hub that orchestrates AI agent interactions.
 
 ---
 
-### agent-client (Client)
+### agent-sdk (Client)
 
 A Spring Boot application that runs on developer machines, bridging local tools with the remote server.
 
@@ -162,7 +162,7 @@ A Spring Boot application that runs on developer machines, bridging local tools 
 | HTTP | Streamable HTTP | `https://mcp.sentry.dev/mcp` |
 | SSE | Server-Sent Events | Legacy remote servers |
 
-📖 [Full agent-client documentation](./agent-client/README.md)
+📖 [Full agent-sdk documentation](./agent-sdk/README.md)
 
 ---
 
@@ -305,12 +305,12 @@ curl -X POST http://localhost:8080/api/customers \
   -d '{"name": "My Development Team"}'
 ```
 
-Save the returned `apiToken` for the agent-client.
+Save the returned `apiToken` for the agent-sdk.
 
 ### 4. Start the Agent Client
 
 ```bash
-cd agent-client
+cd agent-sdk
 
 # Set environment variables
 export AGENT_API_KEY=<api-token-from-step-3>
@@ -322,7 +322,7 @@ export AGENT_SERVER_URL=ws://localhost:8080/agent
 
 ### 5. Configure MCP Servers
 
-Create `mcp.json` in the agent-client resources:
+Create `mcp.json` in the agent-sdk resources:
 
 ```json
 {
@@ -500,7 +500,7 @@ server-agents/
 │   ├── docker/local/        # Local development Docker setup
 │   └── README.md
 │
-├── agent-client/            # Client application
+├── agent-sdk/            # Client application
 │   ├── src/main/java/       # Java source code
 │   ├── src/main/resources/  # Configuration files
 │   └── README.md
@@ -529,8 +529,8 @@ server-agents/
 # Build spring-agents
 cd spring-agents && ./gradlew build
 
-# Build agent-client
-cd agent-client && ./gradlew build
+# Build agent-sdk
+cd agent-sdk && ./gradlew build
 
 # Build agent-message-protocol
 cd agent-message-protocol && ./gradlew build
@@ -546,7 +546,7 @@ cd admin-client-spring-agents/admin-ui && npm run build
 cd spring-agents && ./gradlew test
 
 # Client tests
-cd agent-client && ./gradlew test
+cd agent-sdk && ./gradlew test
 
 # Protocol tests
 cd agent-message-protocol && ./gradlew test
