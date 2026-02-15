@@ -15,7 +15,7 @@ import java.util.function.Supplier;
 @Component
 public class ServerLogger {
 
-    private static final Logger logger = LoggerFactory.getLogger(ServerLogger.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ServerLogger.class);
 
     // MDC Keys
     public static final String CONNECTION_ID = "connectionId";
@@ -77,7 +77,7 @@ public class ServerLogger {
     public void logConnectionEstablished(String connectionId, String clientId) {
         try (var ignored = MDC.putCloseable(CONNECTION_ID, connectionId);
              var ignored2 = MDC.putCloseable(CLIENT_ID, clientId)) {
-            logger.info("Connection established");
+            LOGGER.info("Connection established");
         }
     }
 
@@ -87,7 +87,7 @@ public class ServerLogger {
     public void logConnectionClosed(String connectionId, String clientId, String reason) {
         try (var ignored = MDC.putCloseable(CONNECTION_ID, connectionId);
              var ignored2 = MDC.putCloseable(CLIENT_ID, clientId)) {
-            logger.info("Connection closed: {}", reason);
+            LOGGER.info("Connection closed: {}", reason);
         }
     }
 
@@ -97,10 +97,10 @@ public class ServerLogger {
     public void logSessionStarted(String connectionId, String sessionId, String prompt) {
         try (var ignored = MDC.putCloseable(CONNECTION_ID, connectionId);
              var ignored2 = MDC.putCloseable(SESSION_ID, sessionId)) {
-            String truncatedPrompt = prompt.length() > 100 
-                    ? prompt.substring(0, 100) + "..." 
+            String truncatedPrompt = prompt.length() > 100
+                    ? prompt.substring(0, 100) + "..."
                     : prompt;
-            logger.info("Session started: {}", truncatedPrompt);
+            LOGGER.info("Session started: {}", truncatedPrompt);
         }
     }
 
@@ -110,7 +110,7 @@ public class ServerLogger {
     public void logSessionCompleted(String connectionId, String sessionId, long durationMs) {
         try (var ignored = MDC.putCloseable(CONNECTION_ID, connectionId);
              var ignored2 = MDC.putCloseable(SESSION_ID, sessionId)) {
-            logger.info("Session completed in {}ms", durationMs);
+            LOGGER.info("Session completed in {}ms", durationMs);
         }
     }
 
@@ -120,7 +120,7 @@ public class ServerLogger {
     public void logSessionFailed(String connectionId, String sessionId, String error) {
         try (var ignored = MDC.putCloseable(CONNECTION_ID, connectionId);
              var ignored2 = MDC.putCloseable(SESSION_ID, sessionId)) {
-            logger.error("Session failed: {}", error);
+            LOGGER.error("Session failed: {}", error);
         }
     }
 
@@ -132,20 +132,20 @@ public class ServerLogger {
              var ignored2 = MDC.putCloseable(SESSION_ID, sessionId);
              var ignored3 = MDC.putCloseable(TOOL_NAME, toolName);
              var ignored4 = MDC.putCloseable(REQUEST_ID, requestId)) {
-            logger.info("Tool call initiated");
+            LOGGER.info("Tool call initiated");
         }
     }
 
     /**
      * Logs a tool call completed event.
      */
-    public void logToolCallCompleted(String connectionId, String sessionId, String toolName, 
+    public void logToolCallCompleted(String connectionId, String sessionId, String toolName,
                                      String requestId, long durationMs) {
         try (var ignored = MDC.putCloseable(CONNECTION_ID, connectionId);
              var ignored2 = MDC.putCloseable(SESSION_ID, sessionId);
              var ignored3 = MDC.putCloseable(TOOL_NAME, toolName);
              var ignored4 = MDC.putCloseable(REQUEST_ID, requestId)) {
-            logger.info("Tool call completed in {}ms", durationMs);
+            LOGGER.info("Tool call completed in {}ms", durationMs);
         }
     }
 
@@ -158,7 +158,7 @@ public class ServerLogger {
              var ignored2 = MDC.putCloseable(SESSION_ID, sessionId);
              var ignored3 = MDC.putCloseable(TOOL_NAME, toolName);
              var ignored4 = MDC.putCloseable(REQUEST_ID, requestId)) {
-            logger.error("Tool call failed: {}", error);
+            LOGGER.error("Tool call failed: {}", error);
         }
     }
 

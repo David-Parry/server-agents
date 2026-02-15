@@ -12,24 +12,24 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class JsonNodeOutputConverter implements StructuredOutputConverter<JsonNode> {
-    private static final Logger logger = LoggerFactory.getLogger(JsonNodeOutputConverter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(JsonNodeOutputConverter.class);
     /**
      * JSON instruction to append to system prompts to ensure valid JSON responses.
      */
     private static final String JSON_RESPONSE_INSTRUCTION = """
             CRITICAL OUTPUT FORMAT REQUIREMENT:
             You MUST respond with ONLY raw JSON - no markdown, no code blocks, no backticks, no explanatory text.
-            
+
             **FORBIDDEN**:
             - Do NOT use ```json or ``` markers
             - Do NOT add any text before or after the JSON
             - Do NOT include markdown formatting of any kind
-            
+
             **REQUIRED**:
             - Start your response with { or [
             - End your response with } or ]
             - Output ONLY the JSON object/array, nothing else
-            
+
             Your response must conform to this JSON schema:
             """;
 
@@ -67,8 +67,8 @@ public class JsonNodeOutputConverter implements StructuredOutputConverter<JsonNo
                 result = failedNodeConversionResponse("Failure reason: the source from LLM:'" + source + "'");
             }
         } catch (Exception e) {
-            result = failedNodeConversionResponse("Failure reseason:" + e.getMessage() + " non" + " json " +
-                                                          "structured response from LLM:\n" + source);
+            result = failedNodeConversionResponse("Failure reseason:" + e.getMessage() + " non" + " json "
+                                                          + "structured response from LLM:\n" + source);
         }
         return result;
     }
@@ -77,7 +77,6 @@ public class JsonNodeOutputConverter implements StructuredOutputConverter<JsonNo
         BaseLlmResponse baseLlmResponse = new BaseLlmResponse(false, reason);
         return objectMapper.valueToTree(baseLlmResponse);
     }
-
 
     /**
      * Extracts and validates JSON from the LLM response.
@@ -90,7 +89,7 @@ public class JsonNodeOutputConverter implements StructuredOutputConverter<JsonNo
      */
     public String extractAndValidateJson(String content) {
         if (content == null || content.isBlank()) {
-            logger.warn("Empty content received from LLM, returning empty JSON object");
+            LOGGER.warn("Empty content received from LLM, returning empty JSON object");
             return "{}";
         }
 
@@ -98,17 +97,17 @@ public class JsonNodeOutputConverter implements StructuredOutputConverter<JsonNo
 
         // First, try to parse the content directly as JSON
         if (isValidJson(trimmedContent)) {
-            logger.debug("Content is already valid JSON");
+            LOGGER.debug("Content is already valid JSON");
             return trimmedContent;
         }
-        logger.warn("The content is not valid JSON, attempting to extract from markdown code blocks... \n{}", content);
+        LOGGER.warn("The content is not valid JSON, attempting to extract from markdown code blocks... \n{}", content);
 
         // Try to extract JSON from markdown code blocks
         Matcher matcher = JSON_CODE_BLOCK_PATTERN.matcher(content);
         if (matcher.find()) {
             String extractedJson = matcher.group(1).trim();
             if (isValidJson(extractedJson)) {
-                logger.debug("Extracted valid JSON from markdown code block");
+                LOGGER.debug("Extracted valid JSON from markdown code block");
                 return extractedJson;
             }
         }
@@ -116,18 +115,18 @@ public class JsonNodeOutputConverter implements StructuredOutputConverter<JsonNo
         // Try to find JSON object or array in the content
         String extractedJson = extractJsonFromText(trimmedContent);
         if (isValidJson(extractedJson)) {
-            logger.debug("Extracted valid JSON from text content");
+            LOGGER.debug("Extracted valid JSON from text content");
             return extractedJson;
         }
 
         // If all extraction attempts fail, wrap the content in a JSON object
-        logger.warn("Could not extract valid JSON from LLM response, wrapping content in JSON object");
+        LOGGER.warn("Could not extract valid JSON from LLM response, wrapping content in JSON object");
         try {
             // Escape the content and wrap it in a response object
             String escapedContent = objectMapper.writeValueAsString(trimmedContent);
             return "{\"response\":" + escapedContent + "}";
         } catch (JsonProcessingException e) {
-            logger.error("Failed to escape content for JSON wrapping", e);
+            LOGGER.error("Failed to escape content for JSON wrapping", e);
             return "{\"response\":\"Error processing LLM response\",\"error\":true}";
         }
     }
@@ -148,7 +147,7 @@ public class JsonNodeOutputConverter implements StructuredOutputConverter<JsonNo
             return true;
         } catch (Exception e) {
             // Catch all exceptions including JsonProcessingException and IllegalArgumentException
-            logger.debug("Content is not valid JSON: {}", e.getMessage());
+            LOGGER.debug("Content is not valid JSON: {}", e.getMessage());
             return false;
         }
     }

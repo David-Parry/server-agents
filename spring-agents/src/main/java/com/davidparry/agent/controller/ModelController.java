@@ -16,7 +16,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
@@ -29,7 +35,7 @@ import java.util.Map;
 @Tag(name = "Models", description = "LLM model management operations")
 public class ModelController {
 
-    private static final Logger logger = LoggerFactory.getLogger(ModelController.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ModelController.class);
 
     private final LlmModelService llmModelService;
     private final LlmModelRepository modelRepository;
@@ -115,8 +121,8 @@ public class ModelController {
                 request.description(),
                 request.defaultTokensForNewCustomers()
             );
-            
-            logger.info("Created model: {} and linked to all customers", model.getModel());
+
+            LOGGER.info("Created model: {} and linked to all customers", model.getModel());
             return ResponseEntity.status(HttpStatus.CREATED).body(toModelResponse(model));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
@@ -135,9 +141,9 @@ public class ModelController {
     public ResponseEntity<ModelResponse> updateDefaultTokens(
             @Parameter(description = "Model identifier") @PathVariable String model,
             @RequestBody Map<String, Long> request) {
-        
+
         Long defaultTokens = request.get("defaultTokensForNewCustomers");
-        
+
         try {
             LlmModelEntity updated = llmModelService.updateDefaultTokens(model, defaultTokens);
             return ResponseEntity.ok(toModelResponse(updated));
@@ -159,12 +165,12 @@ public class ModelController {
     public ResponseEntity<ModelResponse> setModelEnabled(
             @Parameter(description = "Model identifier") @PathVariable String model,
             @RequestBody Map<String, Boolean> request) {
-        
+
         Boolean enabled = request.get("enabled");
         if (enabled == null) {
             return ResponseEntity.badRequest().build();
         }
-        
+
         try {
             LlmModelEntity updated = llmModelService.setModelEnabled(model, enabled);
             return ResponseEntity.ok(toModelResponse(updated));
@@ -175,7 +181,8 @@ public class ModelController {
 
     @Operation(
         summary = "Link model to all customers",
-        description = "Creates allowances for this model for all customers that don't have one. Uses the default UNLIMITED policy type. Useful for syncing after manual database changes."
+        description = "Creates allowances for this model for all customers that don't have one. "
+                + "Uses the default UNLIMITED policy type. Useful for syncing after manual database changes."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Model successfully linked to customers"),
@@ -192,9 +199,9 @@ public class ModelController {
         // Use default unlimited policy type for new allowances
         PolicyTypeEntity defaultPolicy = policyTypeRepository.findUnlimitedPolicyType()
             .orElse(null);
-        
+
         int linked = llmModelService.linkModelToAllCustomers(llmModel, defaultPolicy);
-        
+
         return ResponseEntity.ok(Map.of(
             "model", model,
             "customersLinked", linked,

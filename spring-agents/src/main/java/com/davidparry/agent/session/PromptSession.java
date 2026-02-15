@@ -15,10 +15,10 @@ import java.util.function.Consumer;
 /**
  * Represents an active prompt execution session using an immutable record pattern.
  * State changes create new instances via with* methods, following functional programming principles.
- * 
+ *
  * <p>The session configuration is immutable, while runtime state is managed through
  * copy-on-write semantics for thread safety and predictability.</p>
- * 
+ *
  * <p>The sessionId is provided by the client and used throughout the session lifecycle.</p>
  */
 public record PromptSession(
@@ -34,20 +34,20 @@ public record PromptSession(
         Instant createdAt,
         Instant deadline,
         String responseSchema,
-        
+
         // Runtime state (immutable per instance, new instance on change)
         SessionState state,
         String errorMessage,
         Instant completedAt,
         int streamSequence,
         int toolCallCount,
-        
+
         // Mutable shared state (thread-safe containers)
         Map<String, PendingToolCall> pendingCalls,
         Consumer<StreamChunk> streamChunkConsumer,
         Map<String, Object> promptParams
 ) {
-    
+
     /**
      * Compact constructor with validation and defensive copying.
      */
@@ -61,7 +61,7 @@ public record PromptSession(
         if (prompt == null || prompt.isBlank()) {
             throw new IllegalArgumentException("Prompt is required");
         }
-        
+
         // Defensive copies for collections
         tools = tools != null ? List.copyOf(tools) : List.of();
         metadata = metadata != null ? Map.copyOf(metadata) : Map.of();
@@ -254,10 +254,10 @@ public record PromptSession(
      * @return true if completed, cancelled, failed, or timed out
      */
     public boolean isTerminal() {
-        return state == SessionState.COMPLETED ||
-               state == SessionState.CANCELLED ||
-               state == SessionState.FAILED ||
-               state == SessionState.TIMED_OUT;
+        return state == SessionState.COMPLETED
+               || state == SessionState.CANCELLED
+               || state == SessionState.FAILED
+               || state == SessionState.TIMED_OUT;
     }
 
     /**
@@ -350,21 +350,65 @@ public record PromptSession(
     // ==================== Compatibility Getters ====================
     // These provide backward compatibility with existing code using getter naming
 
-    public String getSessionId() { return sessionId; }
-    public ClientConnection getConnection() { return connection; }
-    public String getPrompt() { return prompt; }
-    public String getSystemPrompt() { return systemPrompt; }
-    public String getModel() { return model; }
-    public boolean isStreamingEnabled() { return streamingEnabled; }
-    public List<ToolCallback> getTools() { return tools; }
-    public Map<String, Object> getMetadata() { return metadata; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getDeadline() { return deadline; }
-    public SessionState getState() { return state; }
-    public String getErrorMessage() { return errorMessage; }
-    public Instant getCompletedAt() { return completedAt; }
-    public int getToolCallCount() { return toolCallCount; }
-    public String getResponseSchema() { return responseSchema; }
+    public String getSessionId() {
+        return sessionId;
+    }
+
+    public ClientConnection getConnection() {
+        return connection;
+    }
+
+    public String getPrompt() {
+        return prompt;
+    }
+
+    public String getSystemPrompt() {
+        return systemPrompt;
+    }
+
+    public String getModel() {
+        return model;
+    }
+
+    public boolean isStreamingEnabled() {
+        return streamingEnabled;
+    }
+
+    public List<ToolCallback> getTools() {
+        return tools;
+    }
+
+    public Map<String, Object> getMetadata() {
+        return metadata;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getDeadline() {
+        return deadline;
+    }
+
+    public SessionState getState() {
+        return state;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    public Instant getCompletedAt() {
+        return completedAt;
+    }
+
+    public int getToolCallCount() {
+        return toolCallCount;
+    }
+
+    public String getResponseSchema() {
+        return responseSchema;
+    }
 
     // ==================== Builder ====================
 
@@ -478,13 +522,13 @@ public record PromptSession(
 
     @Override
     public String toString() {
-        return "PromptSession{" +
-                "sessionId='" + sessionId + '\'' +
-                ", state=" + state +
-                ", toolCallCount=" + toolCallCount +
-                ", pendingCalls=" + pendingCalls.size() +
-                ", streaming=" + streamingEnabled +
-                ", promptParams=" + (promptParams != null ? promptParams.size() : 0) +
-                '}';
+        return "PromptSession{"
+                + "sessionId='" + sessionId + '\''
+                + ", state=" + state
+                + ", toolCallCount=" + toolCallCount
+                + ", pendingCalls=" + pendingCalls.size()
+                + ", streaming=" + streamingEnabled
+                + ", promptParams=" + (promptParams != null ? promptParams.size() : 0)
+                + '}';
     }
 }

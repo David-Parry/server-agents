@@ -24,27 +24,27 @@ import java.util.UUID;
  */
 @Service
 public class JwtTokenService {
-    
-    private static final Logger logger = LoggerFactory.getLogger(JwtTokenService.class);
-    
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(JwtTokenService.class);
+
     public static final String CLAIM_CUSTOMER_ID = "customerId";
     public static final String CLAIM_CUSTOMER_NAME = "customerName";
     public static final String CLAIM_TOKEN_TYPE = "tokenType";
     public static final String TOKEN_TYPE_API = "API";
-    
+
     private final JwtProperties properties;
     private final SecretKey signingKey;
-    
+
     public JwtTokenService(JwtProperties properties) {
         this.properties = properties;
         this.signingKey = Keys.hmacShaKeyFor(properties.signingKey().getBytes(StandardCharsets.UTF_8));
-        logger.info("JwtTokenService initialized with issuer: {}, expiration: {} days", 
+        LOGGER.info("JwtTokenService initialized with issuer: {}, expiration: {} days",
                    properties.issuer(), properties.expirationDays());
     }
-    
+
     /**
      * Generates a JWT token for a customer.
-     * 
+     *
      * @param customerId The customer's UUID (included as a claim)
      * @param customerName The customer's name (included as a claim for convenience)
      * @return A signed JWT token string
@@ -52,10 +52,10 @@ public class JwtTokenService {
     public String generateToken(UUID customerId, String customerName) {
         return generateToken(customerId, customerName, null);
     }
-    
+
     /**
      * Generates a JWT token for a customer with optional custom expiration.
-     * 
+     *
      * @param customerId The customer's UUID (included as a claim)
      * @param customerName The customer's name (included as a claim for convenience)
      * @param expiresAt Optional expiration time (null uses default from properties)
@@ -63,7 +63,7 @@ public class JwtTokenService {
      */
     public String generateToken(UUID customerId, String customerName, LocalDateTime expiresAt) {
         Instant now = Instant.now();
-        
+
         var builder = Jwts.builder()
             .id(UUID.randomUUID().toString())  // Unique token ID (jti)
             .issuer(properties.issuer())
@@ -72,7 +72,7 @@ public class JwtTokenService {
             .claim(CLAIM_CUSTOMER_ID, customerId.toString())
             .claim(CLAIM_CUSTOMER_NAME, customerName)
             .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_API);
-        
+
         // Set expiration
         if (expiresAt != null) {
             builder.expiration(Date.from(expiresAt.atZone(ZoneId.systemDefault()).toInstant()));
@@ -80,16 +80,16 @@ public class JwtTokenService {
             builder.expiration(Date.from(now.plusSeconds(properties.expirationDays() * 24L * 60 * 60)));
         }
         // If expirationDays is 0 and no custom expiration, token doesn't expire
-        
+
         String token = builder.signWith(signingKey).compact();
-        
-        logger.debug("Generated JWT for customer: {} ({})", customerName, customerId);
+
+        LOGGER.debug("Generated JWT for customer: {} ({})", customerName, customerId);
         return token;
     }
-    
+
     /**
      * Parses and validates a JWT token.
-     * 
+     *
      * @param token The JWT token string
      * @return The parsed claims if valid
      * @throws JwtException if the token is invalid or expired
@@ -102,10 +102,10 @@ public class JwtTokenService {
             .parseSignedClaims(token)
             .getPayload();
     }
-    
+
     /**
      * Extracts the customer ID from a JWT token.
-     * 
+     *
      * @param token The JWT token string
      * @return The customer UUID
      * @throws JwtException if the token is invalid
@@ -118,10 +118,10 @@ public class JwtTokenService {
         }
         return UUID.fromString(customerIdStr);
     }
-    
+
     /**
      * Validates a JWT token without throwing exceptions.
-     * 
+     *
      * @param token The JWT token string
      * @return true if the token is valid and not expired
      */
@@ -130,14 +130,14 @@ public class JwtTokenService {
             parseToken(token);
             return true;
         } catch (JwtException e) {
-            logger.debug("Invalid JWT token: {}", e.getMessage());
+            LOGGER.debug("Invalid JWT token: {}", e.getMessage());
             return false;
         }
     }
-    
+
     /**
      * Validates that a JWT token belongs to a specific customer.
-     * 
+     *
      * @param token The JWT token string
      * @param expectedCustomerId The expected customer UUID
      * @return true if the token is valid and belongs to the customer
@@ -147,11 +147,11 @@ public class JwtTokenService {
             UUID tokenCustomerId = extractCustomerId(token);
             return expectedCustomerId.equals(tokenCustomerId);
         } catch (JwtException e) {
-            logger.debug("Invalid JWT token for customer {}: {}", expectedCustomerId, e.getMessage());
+            LOGGER.debug("Invalid JWT token for customer {}: {}", expectedCustomerId, e.getMessage());
             return false;
         }
     }
-    
+
     /**
      * Result of token validation with extracted information.
      */
@@ -164,15 +164,15 @@ public class JwtTokenService {
         public static TokenValidationResult valid(UUID customerId, String customerName) {
             return new TokenValidationResult(true, customerId, customerName, null);
         }
-        
+
         public static TokenValidationResult invalid(String errorMessage) {
             return new TokenValidationResult(false, null, null, errorMessage);
         }
     }
-    
+
     /**
      * Validates a token and returns detailed result.
-     * 
+     *
      * @param token The JWT token string
      * @return Validation result with customer info if valid
      */
@@ -181,11 +181,11 @@ public class JwtTokenService {
             Claims claims = parseToken(token);
             String customerIdStr = claims.get(CLAIM_CUSTOMER_ID, String.class);
             String customerName = claims.get(CLAIM_CUSTOMER_NAME, String.class);
-            
+
             if (customerIdStr == null) {
                 return TokenValidationResult.invalid("Token missing customerId claim");
             }
-            
+
             return TokenValidationResult.valid(UUID.fromString(customerIdStr), customerName);
         } catch (JwtException e) {
             return TokenValidationResult.invalid(e.getMessage());

@@ -2,7 +2,7 @@ package com.davidparry.agent.dto;
 
 /**
  * Request DTO for creating a new customer.
- * 
+ *
  * @param name Customer name (required)
  * @param policyTypeName Policy type name (optional - defaults to "UNLIMITED")
  * @param defaultAllowance Default token allowance for all models (optional - null uses model defaults)

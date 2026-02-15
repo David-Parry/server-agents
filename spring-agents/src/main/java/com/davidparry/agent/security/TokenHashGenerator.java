@@ -12,7 +12,11 @@ import java.util.UUID;
  * Usage:
  *   java TokenHashGenerator <token> <customerId> <secret> [secretVersion]
  */
-public class TokenHashGenerator {
+public final class TokenHashGenerator {
+
+    private TokenHashGenerator() {
+        // Utility class - prevent instantiation
+    }
 
     public static void main(String[] args) {
         if (args.length < 3) {

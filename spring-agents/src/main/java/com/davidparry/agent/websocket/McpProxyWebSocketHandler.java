@@ -6,7 +6,19 @@ import com.davidparry.agent.config.McpProxyProperties;
 import com.davidparry.agent.observability.CustomerMetricsService;
 import com.davidparry.agent.observability.ServerMetrics;
 import com.davidparry.agent.pojo.ExecutionResult;
-import com.davidparry.agent.protocol.*;
+import com.davidparry.agent.protocol.Agent;
+import com.davidparry.agent.protocol.BaseLlmResponse;
+import com.davidparry.agent.protocol.CancelSession;
+import com.davidparry.agent.protocol.ConnectionEstablished;
+import com.davidparry.agent.protocol.CreateSession;
+import com.davidparry.agent.protocol.ErrorMessage;
+import com.davidparry.agent.protocol.Heartbeat;
+import com.davidparry.agent.protocol.McpProxyMessage;
+import com.davidparry.agent.protocol.SessionCancelled;
+import com.davidparry.agent.protocol.SessionResult;
+import com.davidparry.agent.protocol.SessionStarted;
+import com.davidparry.agent.protocol.ToolCallRequest;
+import com.davidparry.agent.protocol.ToolCallResponse;
 import com.davidparry.agent.protocol.dto.Capabilities;
 import com.davidparry.agent.protocol.dto.ErrorCode;
 import com.davidparry.agent.protocol.dto.ToolDefinition;
@@ -44,13 +56,13 @@ import java.util.concurrent.CompletableFuture;
 @Component
 public class McpProxyWebSocketHandler extends TextWebSocketHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(McpProxyWebSocketHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(McpProxyWebSocketHandler.class);
     private static final String SERVER_VERSION = "1.0.0";
     // Pattern for validating tool names: server-toolname format (LLM-compatible)
     // Uses hyphen as separator since Anthropic only accepts [a-zA-Z0-9_-]
     private static final java.util.regex.Pattern TOOL_NAME_PATTERN =
-            java.util.regex.Pattern.compile("^[a-zA-Z][a-zA" + "-Z0-9_" + "]*-[a" + "-zA-Z" + "][a-zA" + "-Z0-9_" +
-                                                    "]*$");
+            java.util.regex.Pattern.compile("^[a-zA-Z][a-zA" + "-Z0-9_" + "]*-[a" + "-zA-Z" + "][a-zA" + "-Z0-9_"
+                                                    + "]*$");
     private final ConnectionManager connectionManager;
     private final PromptExecutionService promptExecutionService;
     private final RemoteToolCallbackFactory toolCallbackFactory;
@@ -106,7 +118,7 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
         try (var ignored = MDC.putCloseable("connectionId", connection.getConnectionId()); var ignored2 =
                 MDC.putCloseable("clientId", clientId)) {
 
-            logger.info("WebSocket connection established");
+            LOGGER.info("WebSocket connection established");
 
             // Record metrics
             serverMetrics.recordConnectionOpened();
@@ -134,10 +146,10 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         messagesReceivedCounter.increment();
-        logger.debug("Message Payload: {}", message.getPayload());
+        LOGGER.debug("Message Payload: {}", message.getPayload());
         Optional<ClientConnection> connectionOpt = connectionManager.getConnectionByWebSocketId(session.getId());
         if (connectionOpt.isEmpty()) {
-            logger.error("Received message for unknown connection: {}", session.getId());
+            LOGGER.error("Received message for unknown connection: {}", session.getId());
             return;
         }
 
@@ -149,8 +161,7 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
 
             McpProxyMessage proxyMessage = objectMapper.readValue(message.getPayload(), McpProxyMessage.class);
 
-            logger.debug("Received message: {}", proxyMessage.getClass().getSimpleName());
-
+            LOGGER.debug("Received message: {}", proxyMessage.getClass().getSimpleName());
 
             switch (proxyMessage) {
                 case CreateSession createSession -> handleCreateSession(connection, createSession);
@@ -158,7 +169,7 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
                 case CancelSession cancelSession -> handleCancelSession(connection, cancelSession);
                 case Heartbeat heartbeat -> handleHeartbeat(connection, heartbeat);
                 default -> {
-                    logger.warn("Unexpected message type: {}", proxyMessage.getClass().getSimpleName());
+                    LOGGER.warn("Unexpected message type: {}", proxyMessage.getClass().getSimpleName());
                     sendError(session, null, ErrorCode.INVALID_MESSAGE, "Unexpected message type: " + proxyMessage
                             .getClass()
                             .getSimpleName());
@@ -167,22 +178,22 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
         } catch (com.fasterxml.jackson.core.JsonParseException e) {
             messageErrorsCounter.increment();
             String payload = message.getPayload();
-            logger.warn("Invalid JSON received: {} | Failed payload: '{}'", e.getMessage(), payload);
+            LOGGER.warn("Invalid JSON received: {} | Failed payload: '{}'", e.getMessage(), payload);
             sendError(session, null, ErrorCode.INVALID_MESSAGE, "Invalid JSON format: " + e.getOriginalMessage());
         } catch (com.fasterxml.jackson.databind.exc.InvalidTypeIdException e) {
             messageErrorsCounter.increment();
             String payload = message.getPayload();
-            logger.warn("Missing or invalid message type: {} | Failed payload: '{}'", e.getMessage(), payload);
-            sendError(session, null, ErrorCode.INVALID_MESSAGE, "Missing or invalid 'type' field. Valid types: " +
-                    "create_session, tool_call_response, cancel_session, heartbeat");
+            LOGGER.warn("Missing or invalid message type: {} | Failed payload: '{}'", e.getMessage(), payload);
+            sendError(session, null, ErrorCode.INVALID_MESSAGE, "Missing or invalid 'type' field. Valid types: "
+                    + "create_session, tool_call_response, cancel_session, heartbeat");
         } catch (com.fasterxml.jackson.databind.JsonMappingException e) {
             messageErrorsCounter.increment();
             String payload = message.getPayload();
-            logger.warn("JSON mapping error: {} | Failed payload: '{}'", e.getMessage(), payload);
+            LOGGER.warn("JSON mapping error: {} | Failed payload: '{}'", e.getMessage(), payload);
             sendError(session, null, ErrorCode.INVALID_MESSAGE, "Invalid message structure: " + e.getOriginalMessage());
         } catch (Exception e) {
             messageErrorsCounter.increment();
-            logger.error("Error processing message", e);
+            LOGGER.error("Error processing message", e);
             sendError(session, null, ErrorCode.INTERNAL_ERROR, e.getMessage());
         }
     }
@@ -197,7 +208,7 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
             try (var ignored = MDC.putCloseable("connectionId", connection.getConnectionId()); var ignored2 =
                     MDC.putCloseable("clientId", connection.getClientId())) {
 
-                logger.info("WebSocket connection closed: {}", status);
+                LOGGER.info("WebSocket connection closed: {}", status);
 
                 // Record metrics
                 serverMetrics.recordConnectionClosed();
@@ -221,7 +232,7 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
             try (var ignored = MDC.putCloseable("connectionId", connection.getConnectionId()); var ignored2 =
                     MDC.putCloseable("clientId", connection.getClientId())) {
 
-                logger.error("WebSocket transport error", exception);
+                LOGGER.error("WebSocket transport error", exception);
 
                 connection.fail("Transport error: " + exception.getMessage());
                 connectionManager.removeConnection(connection.getConnectionId());
@@ -234,19 +245,20 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
 
         // Validate sessionId is provided
         if (sessionId == null || sessionId.isBlank()) {
-            logger.warn("CreateSession missing sessionId");
+            LOGGER.warn("CreateSession missing sessionId");
             sendError(connection.getWebSocketSession(), null, ErrorCode.INVALID_MESSAGE,
                       "sessionId is required in " + "CreateSession");
             return;
         }
 
-        try (var ignored = MDC.putCloseable("sessionId", sessionId); var ignored2 = MDC.putCloseable("connectionId",
-                                                                                                     connection.getConnectionId()); var ignored3 = MDC.putCloseable("clientId", connection.getClientId())) {
-            logger.info("Creating session for Agent: {}...", createSession.getAgent().name());
+        try (var ignored = MDC.putCloseable("sessionId", sessionId);
+             var ignored2 = MDC.putCloseable("connectionId", connection.getConnectionId());
+             var ignored3 = MDC.putCloseable("clientId", connection.getClientId())) {
+            LOGGER.info("Creating session for Agent: {}...", createSession.getAgent().name());
 
             // Check for duplicate sessionId
             if (connectionManager.findSession(sessionId).isPresent()) {
-                logger.warn("Duplicate sessionId: {}", sessionId);
+                LOGGER.warn("Duplicate sessionId: {}", sessionId);
                 sendError(connection.getWebSocketSession(), sessionId, ErrorCode.INVALID_MESSAGE, "Session with this "
                         + "sessionId already exists: " + sessionId);
                 return;
@@ -254,7 +266,7 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
 
             // Check if connection can accept new sessions
             if (!connection.canAcceptSession()) {
-                logger.warn("Connection cannot accept new sessions");
+                LOGGER.warn("Connection cannot accept new sessions");
                 sendError(connection.getWebSocketSession(), sessionId, ErrorCode.SESSION_LIMIT_EXCEEDED,
                           "Maximum " + "concurrent sessions reached");
                 return;
@@ -263,9 +275,10 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
             // Validate tool names follow server-toolname format (LLM-compatible)
             for (ToolDefinition toolDef : createSession.getTools()) {
                 if (!TOOL_NAME_PATTERN.matcher(toolDef.getName()).matches()) {
-                    logger.warn("Invalid tool name format: {}", toolDef.getName());
-                    sendError(connection.getWebSocketSession(), sessionId, ErrorCode.INVALID_MESSAGE, "Tool name " +
-                            "must" + " follow 'server-toolname' format (e.g., 'terminal-list_files'). Invalid: " + toolDef.getName());
+                    LOGGER.warn("Invalid tool name format: {}", toolDef.getName());
+                    sendError(connection.getWebSocketSession(), sessionId, ErrorCode.INVALID_MESSAGE,
+                            "Tool name must follow 'server-toolname' format (e.g., 'terminal-list_files'). Invalid: "
+                            + toolDef.getName());
                     return;
                 }
             }
@@ -273,7 +286,7 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
             // Check for duplicate tool names
             List<String> toolNames = createSession.getTools().stream().map(ToolDefinition::getName).toList();
             if (toolNames.size() != toolNames.stream().distinct().count()) {
-                logger.warn("Duplicate tool names in session request");
+                LOGGER.warn("Duplicate tool names in session request");
                 sendError(connection.getWebSocketSession(), sessionId, ErrorCode.INVALID_MESSAGE,
                           "Duplicate tool " + "names are not allowed");
                 return;
@@ -295,12 +308,12 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
             String systemPrompt = agentConfig.systemPrompt();
             String model = agentConfig.model();
 
-            logger.debug("Using agent configuration for type {}: model={}", agent.type(), model);
+            LOGGER.debug("Using agent configuration for type {}: model={}", agent.type(), model);
 
             // Merge the agent's output schema with the base LLM response schema
             String completeSchema = schemaMerger.mergePropertiesWithClass(agent.outputSchema(), BaseLlmResponse.class);
 
-            logger.trace("Completed merging schema {}", completeSchema);
+            LOGGER.trace("Completed merging schema {}", completeSchema);
 
             PromptSession session = PromptSession
                     .builder()
@@ -319,7 +332,7 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
 
             // Add to connection
             if (!connection.addSession(session)) {
-                logger.error("Failed to add session to connection");
+                LOGGER.error("Failed to add session to connection");
                 sendError(connection.getWebSocketSession(), sessionId, ErrorCode.INTERNAL_ERROR,
                           "Failed to create " + "session");
                 return;
@@ -352,15 +365,17 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
                 .map(PendingToolCall::toolName)
                 .orElse("");
 
-        try (var ignored = MDC.putCloseable("sessionId", response.getSessionId()); var ignored2 = MDC.putCloseable(
-                "requestId", response.getRequestId()); var ignored3 = MDC.putCloseable("connectionId",
-                                                                                       connection.getConnectionId()); var ignored4 = MDC.putCloseable("clientId", connection.getClientId()); var ignored5 = MDC.putCloseable("toolName", toolName)) {
+        try (var ignored = MDC.putCloseable("sessionId", response.getSessionId());
+             var ignored2 = MDC.putCloseable("requestId", response.getRequestId());
+             var ignored3 = MDC.putCloseable("connectionId", connection.getConnectionId());
+             var ignored4 = MDC.putCloseable("clientId", connection.getClientId());
+             var ignored5 = MDC.putCloseable("toolName", toolName)) {
 
-            logger.debug("Received tool call response: success={}", response.isSuccess());
+            LOGGER.debug("Received tool call response: success={}", response.isSuccess());
 
             Optional<PromptSession> sessionOpt = connection.getSession(response.getSessionId());
             if (sessionOpt.isEmpty()) {
-                logger.warn("Tool call response for unknown session: {}", response.getSessionId());
+                LOGGER.warn("Tool call response for unknown session: {}", response.getSessionId());
                 return;
             }
 
@@ -368,7 +383,7 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
             Optional<PendingToolCall> pendingCallOpt = session.getPendingCall(response.getRequestId());
 
             if (pendingCallOpt.isEmpty()) {
-                logger.warn("Tool call response for unknown request: {}", response.getRequestId());
+                LOGGER.warn("Tool call response for unknown request: {}", response.getRequestId());
                 return;
             }
 
@@ -389,11 +404,11 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
         try (var ignored = MDC.putCloseable("sessionId", cancelSession.getSessionId()); var ignored2 =
                 MDC.putCloseable("connectionId", connection.getConnectionId()); var ignored3 = MDC.putCloseable(
                         "clientId", connection.getClientId())) {
-            logger.info("Cancelling session: {}", cancelSession.getReason());
+            LOGGER.info("Cancelling session: {}", cancelSession.getReason());
 
             Optional<PromptSession> sessionOpt = connection.getSession(cancelSession.getSessionId());
             if (sessionOpt.isEmpty()) {
-                logger.warn("Cancel request for unknown session: {}", cancelSession.getSessionId());
+                LOGGER.warn("Cancel request for unknown session: {}", cancelSession.getSessionId());
                 return;
             }
 
@@ -423,7 +438,7 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
     }
 
     private void handleHeartbeat(ClientConnection connection, Heartbeat heartbeat) {
-        logger.trace("Received heartbeat");
+        LOGGER.trace("Received heartbeat");
 
         if (!heartbeat.isResponse()) {
             // Send heartbeat response
@@ -440,12 +455,9 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
 
     private void executePromptAsync(PromptSession session) {
         CompletableFuture.runAsync(() -> {
-            try (var ignored = MDC.putCloseable("sessionId", session.getSessionId()); var ignored2 =
-                    MDC.putCloseable("connectionId", session
-                    .getConnection()
-                    .getConnectionId()); var ignored3 = MDC.putCloseable("clientId", session
-                    .getConnection()
-                    .getClientId())) {
+            try (var ignored = MDC.putCloseable("sessionId", session.getSessionId());
+                 var ignored2 = MDC.putCloseable("connectionId", session.getConnection().getConnectionId());
+                 var ignored3 = MDC.putCloseable("clientId", session.getConnection().getClientId())) {
 
                 promptExecutionService
                         .executePrompt(session)
@@ -470,19 +482,19 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
                 .getClientId())) {
             // Use toString() for JsonNode since textValue() returns null for non-text nodes (objects, arrays, etc.)
             String contentStr = result.getContent() != null ? result.getContent().toString() : null;
-            logger.info("Session completed: success={}, duration={}ms, contentLength={}", result.isSuccess(),
+            LOGGER.info("Session completed: success={}, duration={}ms, contentLength={}", result.isSuccess(),
                         result.getTotalDurationMs(), contentStr != null ? contentStr.length() : "null");
 
-            if (logger.isDebugEnabled() && contentStr != null) {
+            if (LOGGER.isDebugEnabled() && contentStr != null) {
                 // Log first 1200 chars of response for debugging
                 String preview = contentStr.length() > 1200 ? contentStr.substring(0, 1200) + "..." : contentStr;
-                logger.debug("Response preview: {}", preview);
+                LOGGER.debug("Response preview: {}", preview);
             }
 
             // Record session completion metrics
             String clientId = updatedSession.getConnection().getClientId();
             long durationMs = result.getTotalDurationMs();
-            
+
             if (result.isSuccess()) {
                 serverMetrics.recordSessionCompleted();
                 serverMetrics.recordSessionOutcome("completed", durationMs);
@@ -511,7 +523,7 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
                 .getConnectionId()); var ignored3 = MDC.putCloseable("clientId", session
                 .getConnection()
                 .getClientId())) {
-            logger.error("Session failed", error);
+            LOGGER.error("Session failed", error);
 
             PromptSession failedSession = session.fail(error.getMessage());
             session.getConnection().updateSession(failedSession);
@@ -551,12 +563,12 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
                 String json = objectMapper.writeValueAsString(message);
                 session.sendMessage(new TextMessage(json));
                 messagesSentCounter.increment();
-                logger.trace("Sent message: {}", message.getClass().getSimpleName());
+                LOGGER.trace("Sent message: {}", message.getClass().getSimpleName());
             } else {
-                logger.warn("Cannot send message - WebSocket is closed");
+                LOGGER.warn("Cannot send message - WebSocket is closed");
             }
         } catch (IOException e) {
-            logger.error("Failed to send message", e);
+            LOGGER.error("Failed to send message", e);
             messageErrorsCounter.increment();
         }
     }

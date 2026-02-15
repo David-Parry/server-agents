@@ -27,13 +27,13 @@ import java.util.concurrent.TimeoutException;
 /**
  * ToolCallback implementation that proxies tool calls to a remote agent-client.
  * This is the critical bridge between Spring AI's tool system and remote execution.
- * 
+ *
  * <p>Tool names use the format "server-toolname" (e.g., "terminal-list_files") which is
  * compatible with all LLM providers including Anthropic (which only accepts [a-zA-Z0-9_-]).
  */
 public class RemoteToolCallback implements ToolCallback {
 
-    private static final Logger logger = LoggerFactory.getLogger(RemoteToolCallback.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RemoteToolCallback.class);
 
     private final String toolName;
     private final String description;
@@ -83,7 +83,7 @@ public class RemoteToolCallback implements ToolCallback {
         try {
             return objectMapper.writeValueAsString(inputSchema);
         } catch (JsonProcessingException e) {
-            logger.warn("Failed to serialize inputSchema, using empty object: {}", e.getMessage());
+            LOGGER.warn("Failed to serialize inputSchema, using empty object: {}", e.getMessage());
             return "{}";
         }
     }
@@ -100,20 +100,20 @@ public class RemoteToolCallback implements ToolCallback {
     @Override
     public String call(String arguments) {
         String requestId = connectionManager.generateRequestId();
-        
+
         try (var ignored = MDC.putCloseable("requestId", requestId);
              var ignored2 = MDC.putCloseable("toolName", toolName);
              var ignored3 = MDC.putCloseable("sessionId", sessionId);
              var ignored4 = MDC.putCloseable("connectionId", connection.getConnectionId());
              var ignored5 = MDC.putCloseable("clientId", connection.getClientId())) {
-            
-            logger.info("Executing remote tool call: {}", toolName);
-            
+
+            LOGGER.info("Executing remote tool call: {}", toolName);
+
             return toolCallTimer.record(() -> executeToolCall(requestId, arguments));
         } catch (Exception e) {
             // Return error as a string instead of throwing - allows LLM to see the error and decide how to proceed
             String errorMessage = extractErrorMessage(e);
-            logger.error("Tool call failed, returning error to LLM: {}", errorMessage);
+            LOGGER.error("Tool call failed, returning error to LLM: {}", errorMessage);
             return formatErrorResponse(errorMessage);
         }
     }
@@ -124,7 +124,7 @@ public class RemoteToolCallback implements ToolCallback {
     private String extractErrorMessage(Throwable e) {
         Throwable cause = e;
         String message = e.getMessage();
-        
+
         // Unwrap nested exceptions to get the root cause message
         while (cause.getCause() != null && cause.getCause() != cause) {
             cause = cause.getCause();
@@ -132,13 +132,13 @@ public class RemoteToolCallback implements ToolCallback {
                 message = cause.getMessage();
             }
         }
-        
+
         // Clean up common prefixes that get nested
         if (message != null) {
             message = message.replaceAll("(?i)^(Tool call failed: )+", "");
             message = message.replaceAll("(?i)^(Tool execution error: )+", "");
         }
-        
+
         return message != null ? message : "Unknown error occurred";
     }
 
@@ -176,9 +176,9 @@ public class RemoteToolCallback implements ToolCallback {
         // Check circuit breaker
         CircuitBreaker circuitBreaker = circuitBreakerManager.getBreaker(
                 connection.getConnectionId(), toolName);
-        
+
         if (!circuitBreakerManager.isToolAvailable(connection.getConnectionId(), toolName)) {
-            logger.warn("Circuit breaker is open for tool: {}", toolName);
+            LOGGER.warn("Circuit breaker is open for tool: {}", toolName);
             throw new RuntimeException("Tool temporarily unavailable due to repeated failures");
         }
 
@@ -189,14 +189,14 @@ public class RemoteToolCallback implements ToolCallback {
         PendingToolCall pendingCall = new PendingToolCall(requestId, toolName, arguments, deadline);
         PromptSession updatedSession = session.addPendingCall(pendingCall);
         updatedSession = updatedSession.waitingForTool();
-        
+
         // CRITICAL: Update the session in the connection so toolCallCount is preserved
         connection.updateSession(updatedSession);
 
         try {
             // Parse arguments string to Map for the request
             Map<String, Object> argumentsMap = parseArguments(arguments);
-            
+
             // Send tool call request to client (use updatedSession for consistency)
             ToolCallRequest request = ToolCallRequest.builder()
                     .requestId(requestId)
@@ -213,8 +213,8 @@ public class RemoteToolCallback implements ToolCallback {
                     return pendingCall.responseFuture()
                             .get(config.toolCallTimeoutSeconds(), TimeUnit.SECONDS);
                 } catch (TimeoutException e) {
-                    throw new RuntimeException("Tool call timed out after " + 
-                            config.toolCallTimeoutSeconds() + " seconds", e);
+                    throw new RuntimeException("Tool call timed out after "
+                            + config.toolCallTimeoutSeconds() + " seconds", e);
                 } catch (Exception e) {
                     throw new RuntimeException("Tool call failed: " + e.getMessage(), e);
                 }
@@ -225,8 +225,8 @@ public class RemoteToolCallback implements ToolCallback {
                     .orElse(updatedSession);
             PromptSession resumedSession = currentSession.resumeExecution();
             connection.updateSession(resumedSession);
-            
-            logger.info("Tool call completed successfully, toolCallCount={}", resumedSession.getToolCallCount());
+
+            LOGGER.info("Tool call completed successfully, toolCallCount={}", resumedSession.getToolCallCount());
             return result;
 
         } catch (Exception e) {
@@ -236,8 +236,8 @@ public class RemoteToolCallback implements ToolCallback {
             currentSession.removePendingCall(requestId);
             PromptSession resumedSession = currentSession.resumeExecution();
             connection.updateSession(resumedSession);
-            
-            logger.error("Tool call failed: {}", e.getMessage());
+
+            LOGGER.error("Tool call failed: {}", e.getMessage());
             throw new RuntimeException("Tool call failed: " + e.getMessage(), e);
         }
     }
@@ -249,17 +249,17 @@ public class RemoteToolCallback implements ToolCallback {
         try {
             return objectMapper.readValue(arguments, new TypeReference<Map<String, Object>>() {});
         } catch (JsonProcessingException e) {
-            logger.warn("Failed to parse arguments as JSON, wrapping as raw: {}", e.getMessage());
+            LOGGER.warn("Failed to parse arguments as JSON, wrapping as raw: {}", e.getMessage());
             return Map.of("raw", arguments);
         }
     }
 
     @Override
     public String toString() {
-        return "RemoteToolCallback{" +
-                "toolName='" + toolName + '\'' +
-                ", sessionId='" + sessionId + '\'' +
-                ", connectionId='" + connection.getConnectionId() + '\'' +
-                '}';
+        return "RemoteToolCallback{"
+                + "toolName='" + toolName + '\''
+                + ", sessionId='" + sessionId + '\''
+                + ", connectionId='" + connection.getConnectionId() + '\''
+                + '}';
     }
 }

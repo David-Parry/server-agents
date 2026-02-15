@@ -20,7 +20,7 @@ public record AgentConfigResponse(
     LocalDateTime createdAt,
     LocalDateTime updatedAt
 ) {
-    
+
     /**
      * Nested response for execution configuration.
      */

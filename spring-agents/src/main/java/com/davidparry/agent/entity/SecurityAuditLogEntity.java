@@ -1,6 +1,14 @@
 package com.davidparry.agent.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -11,49 +19,49 @@ import java.util.UUID;
 @Entity
 @Table(name = "security_audit_log")
 public class SecurityAuditLogEntity {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-    
+
     @Column(name = "event_type", nullable = false, length = 50)
     @Enumerated(EnumType.STRING)
     private EventType eventType;
-    
+
     @Column(name = "event_category", nullable = false, length = 30)
     @Enumerated(EnumType.STRING)
     private EventCategory eventCategory;
-    
+
     @Column(name = "customer_id")
     private UUID customerId;
-    
+
     @Column(name = "token_id")
     private UUID tokenId;
-    
+
     @Column(name = "secret_version", length = 10)
     private String secretVersion;
-    
+
     @Column(name = "description", length = 500)
     private String description;
-    
+
     @Column(name = "metadata", columnDefinition = "TEXT")
     private String metadata;
-    
+
     @Column(name = "actor_type", nullable = false, length = 30)
     @Enumerated(EnumType.STRING)
     private ActorType actorType;
-    
+
     @Column(name = "actor_id", length = 100)
     private String actorId;
-    
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-    
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
     }
-    
+
     // Enums
     public enum EventType {
         TOKEN_CREATED,
@@ -91,7 +99,7 @@ public class SecurityAuditLogEntity {
         ADMIN_CUSTOMER_AGENT_TYPE_REMOVED,
         ADMIN_CUSTOMER_AGENT_TYPES_BULK_ASSIGNED
     }
-    
+
     public enum EventCategory {
         TOKEN,
         SECRET,
@@ -102,114 +110,114 @@ public class SecurityAuditLogEntity {
         NOTIFICATION,
         ADMIN
     }
-    
+
     public enum ActorType {
         SYSTEM,
         ADMIN,
         CUSTOMER,
         SCHEDULER
     }
-    
+
     // Builder pattern for convenient construction
     public static Builder builder() {
         return new Builder();
     }
-    
+
     public static class Builder {
         private final SecurityAuditLogEntity entity = new SecurityAuditLogEntity();
-        
+
         public Builder eventType(EventType eventType) {
             entity.eventType = eventType;
             return this;
         }
-        
+
         public Builder eventCategory(EventCategory eventCategory) {
             entity.eventCategory = eventCategory;
             return this;
         }
-        
+
         public Builder customerId(UUID customerId) {
             entity.customerId = customerId;
             return this;
         }
-        
+
         public Builder tokenId(UUID tokenId) {
             entity.tokenId = tokenId;
             return this;
         }
-        
+
         public Builder secretVersion(String secretVersion) {
             entity.secretVersion = secretVersion;
             return this;
         }
-        
+
         public Builder description(String description) {
             entity.description = description;
             return this;
         }
-        
+
         public Builder metadata(String metadata) {
             entity.metadata = metadata;
             return this;
         }
-        
+
         public Builder actorType(ActorType actorType) {
             entity.actorType = actorType;
             return this;
         }
-        
+
         public Builder actorId(String actorId) {
             entity.actorId = actorId;
             return this;
         }
-        
+
         public SecurityAuditLogEntity build() {
             return entity;
         }
     }
-    
+
     // Getters
-    public UUID getId() { 
-        return id; 
+    public UUID getId() {
+        return id;
     }
-    
-    public EventType getEventType() { 
-        return eventType; 
+
+    public EventType getEventType() {
+        return eventType;
     }
-    
-    public EventCategory getEventCategory() { 
-        return eventCategory; 
+
+    public EventCategory getEventCategory() {
+        return eventCategory;
     }
-    
-    public UUID getCustomerId() { 
-        return customerId; 
+
+    public UUID getCustomerId() {
+        return customerId;
     }
-    
-    public UUID getTokenId() { 
-        return tokenId; 
+
+    public UUID getTokenId() {
+        return tokenId;
     }
-    
-    public String getSecretVersion() { 
-        return secretVersion; 
+
+    public String getSecretVersion() {
+        return secretVersion;
     }
-    
-    public String getDescription() { 
-        return description; 
+
+    public String getDescription() {
+        return description;
     }
-    
-    public String getMetadata() { 
-        return metadata; 
+
+    public String getMetadata() {
+        return metadata;
     }
-    
-    public ActorType getActorType() { 
-        return actorType; 
+
+    public ActorType getActorType() {
+        return actorType;
     }
-    
-    public String getActorId() { 
-        return actorId; 
+
+    public String getActorId() {
+        return actorId;
     }
-    
-    public LocalDateTime getCreatedAt() { 
-        return createdAt; 
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
     }
 }

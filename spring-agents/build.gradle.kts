@@ -174,9 +174,6 @@ tasks.check {
 checkstyle {
     toolVersion = "10.21.4"
     configFile = file("${rootDir}/config/checkstyle/checkstyle.xml")
-    isIgnoreFailures = false  // Report warnings but don't fail build
-    maxWarnings = Int.MAX_VALUE
-    maxErrors = 0
 }
 
 tasks.withType<Checkstyle> {
@@ -186,9 +183,20 @@ tasks.withType<Checkstyle> {
     }
 }
 
+// Fail build on any checkstyle violations in main source code
+tasks.named<Checkstyle>("checkstyleMain") {
+    isIgnoreFailures = false
+    maxWarnings = 0
+    maxErrors = 0
+}
+
+// Don't fail build for test code checkstyle violations (just report them)
+tasks.named<Checkstyle>("checkstyleTest") {
+    isIgnoreFailures = true
+}
+
 // SpotBugs Configuration
 spotbugs {
-    ignoreFailures.set(false)  // Report issues but don't fail build
     showStackTraces.set(true)
     showProgress.set(true)
     effort.set(com.github.spotbugs.snom.Effort.MAX)
@@ -206,6 +214,16 @@ tasks.withType<com.github.spotbugs.snom.SpotBugsTask> {
         required.set(true)
         outputLocation.set(layout.buildDirectory.file("reports/spotbugs/${taskName}.xml"))
     }
+}
+
+// Fail build on any SpotBugs violations in main source code
+tasks.named<com.github.spotbugs.snom.SpotBugsTask>("spotbugsMain").configure {
+    ignoreFailures = false
+}
+
+// Don't fail build for test code SpotBugs violations (just report them)
+tasks.named<com.github.spotbugs.snom.SpotBugsTask>("spotbugsTest").configure {
+    ignoreFailures = true
 }
 
 // Token Hash Generator task for http-header-generator.sh

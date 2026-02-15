@@ -21,37 +21,37 @@ import java.util.UUID;
  */
 @Service
 public class TokenHashingService {
-    
-    private static final Logger logger = LoggerFactory.getLogger(TokenHashingService.class);
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(TokenHashingService.class);
     private static final String HMAC_ALGORITHM = "HmacSHA256";
-    
+
     private final TokenHashingProperties properties;
-    
+
     public TokenHashingService(TokenHashingProperties properties) {
         this.properties = properties;
-        logger.info("TokenHashingService initialized with {} secret version(s), current: {}", 
+        LOGGER.info("TokenHashingService initialized with {} secret version(s), current: {}",
                    properties.getAvailableVersions().size(),
                    properties.currentSecretVersion());
     }
-    
+
     /**
      * Gets the current secret version (for new tokens).
      */
     public String getCurrentSecretVersion() {
         return properties.currentSecretVersion();
     }
-    
+
     /**
      * Gets all available secret versions.
      */
     public Set<String> getAvailableVersions() {
         return properties.getAvailableVersions();
     }
-    
+
     /**
      * Hashes a token using the CURRENT secret version.
      * Returns both the hash as a hex string and the version used.
-     * 
+     *
      * @param token The JWT token to hash
      * @param customerId The customer's UUID (used as salt)
      * @return HashResult containing the hash as hex string and version used
@@ -62,11 +62,11 @@ public class TokenHashingService {
         String hexHash = bytesToHex(hash);
         return new HashResult(hexHash, version);
     }
-    
+
     /**
      * Hashes a token using a SPECIFIC secret version and returns as hex string.
      * Used for verification against stored hashes.
-     * 
+     *
      * @param token The JWT token to hash
      * @param customerId The customer's UUID (used as salt)
      * @param secretVersion The secret version to use (e.g., "V1", "V2")
@@ -76,7 +76,7 @@ public class TokenHashingService {
         byte[] hash = hashTokenToBytes(token, customerId, secretVersion);
         return bytesToHex(hash);
     }
-    
+
     /**
      * Internal method to hash a token to bytes.
      */
@@ -84,26 +84,26 @@ public class TokenHashingService {
         String secret = properties.getSecret(secretVersion);
         byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
         byte[] salt = uuidToBytes(customerId);
-        
+
         try {
             Mac mac = Mac.getInstance(HMAC_ALGORITHM);
             SecretKeySpec keySpec = new SecretKeySpec(secretBytes, HMAC_ALGORITHM);
             mac.init(keySpec);
-            
+
             // Include salt (customer UUID bytes) in the message
             mac.update(salt);
             mac.update(token.getBytes(StandardCharsets.UTF_8));
-            
+
             return mac.doFinal();
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new SecurityException("Failed to hash token with version " + secretVersion, e);
         }
     }
-    
+
     /**
      * Verifies a token against a stored hash (hex string) using the specified secret version.
      * Uses constant-time comparison to prevent timing attacks.
-     * 
+     *
      * @param token The token to verify
      * @param customerId The customer's UUID (used as salt)
      * @param storedHashHex The stored hash as hex string to compare against
@@ -113,35 +113,35 @@ public class TokenHashingService {
     public boolean verifyToken(String token, UUID customerId, String storedHashHex, String secretVersion) {
         // Check if the secret version is still configured
         if (!properties.hasVersion(secretVersion)) {
-            logger.warn("Attempted to verify token with unconfigured secret version: {}", secretVersion);
+            LOGGER.warn("Attempted to verify token with unconfigured secret version: {}", secretVersion);
             return false;
         }
-        
+
         byte[] computedHash = hashTokenToBytes(token, customerId, secretVersion);
         byte[] storedHash = hexToBytes(storedHashHex);
         return constantTimeEquals(computedHash, storedHash);
     }
-    
+
     /**
      * Result of hashing operation, includes version for storage.
      * Hash is stored as hex string for database storage.
      */
     public record HashResult(String hash, String secretVersion) {}
-    
+
     /**
      * Converts bytes to uppercase hex string.
      */
     private static String bytesToHex(byte[] bytes) {
         return HexFormat.of().withUpperCase().formatHex(bytes);
     }
-    
+
     /**
      * Converts hex string to bytes.
      */
     private static byte[] hexToBytes(String hex) {
         return HexFormat.of().parseHex(hex);
     }
-    
+
     /**
      * Converts a UUID to a 16-byte array.
      * UUID is 128 bits = 16 bytes, providing sufficient entropy for salt.
@@ -156,7 +156,7 @@ public class TokenHashingService {
         }
         return bytes;
     }
-    
+
     /**
      * Constant-time comparison to prevent timing attacks.
      */

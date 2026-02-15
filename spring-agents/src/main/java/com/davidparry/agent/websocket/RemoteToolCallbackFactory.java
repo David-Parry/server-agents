@@ -50,7 +50,7 @@ public class RemoteToolCallbackFactory {
             String sessionId,
             ClientConnection connection,
             McpProxyWebSocketHandler.ToolCallSender sender) {
-        
+
         return new RemoteToolCallback(
                 toolDefinition.getName(),
                 toolDefinition.getDescription(),

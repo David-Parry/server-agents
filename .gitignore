@@ -11,3 +11,5 @@
 # OS files
 .DS_Store
 **/._*
+/plan-mono.md
+/.claude/

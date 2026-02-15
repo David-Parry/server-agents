@@ -14,19 +14,19 @@ import java.util.concurrent.atomic.AtomicLong;
  * Represents a WebSocket connection from a remote agent-client.
  * Manages multiple concurrent prompt sessions within a single connection.
  */
-public class ClientConnection {
+public final class ClientConnection {
 
     private final String connectionId;
     private final String clientId;
     private final WebSocketSession webSocketSession;
     private final Instant connectedAt;
     private final int maxConcurrentSessions;
-    
+
     private final Map<String, PromptSession> sessions;
     private final AtomicInteger sessionCount;
     private final AtomicLong totalSessionsCreated;
     private final AtomicLong totalToolCalls;
-    
+
     private volatile ConnectionState state;
     private volatile Instant lastActivityAt;
     private volatile String disconnectReason;
@@ -37,12 +37,12 @@ public class ClientConnection {
         this.webSocketSession = builder.webSocketSession;
         this.connectedAt = Instant.now();
         this.maxConcurrentSessions = builder.maxConcurrentSessions;
-        
+
         this.sessions = new ConcurrentHashMap<>();
         this.sessionCount = new AtomicInteger(0);
         this.totalSessionsCreated = new AtomicLong(0);
         this.totalToolCalls = new AtomicLong(0);
-        
+
         this.state = ConnectionState.ACTIVE;
         this.lastActivityAt = connectedAt;
     }
@@ -101,8 +101,8 @@ public class ClientConnection {
      * @return true if under session limit and in active state
      */
     public boolean canAcceptSession() {
-        return state == ConnectionState.ACTIVE && 
-               sessionCount.get() < maxConcurrentSessions;
+        return state == ConnectionState.ACTIVE
+               && sessionCount.get() < maxConcurrentSessions;
     }
 
     /**
@@ -115,7 +115,7 @@ public class ClientConnection {
         if (!canAcceptSession()) {
             return false;
         }
-        
+
         if (sessions.putIfAbsent(session.getSessionId(), session) == null) {
             sessionCount.incrementAndGet();
             totalSessionsCreated.incrementAndGet();
@@ -342,12 +342,12 @@ public class ClientConnection {
 
     @Override
     public String toString() {
-        return "ClientConnection{" +
-                "connectionId='" + connectionId + '\'' +
-                ", clientId='" + clientId + '\'' +
-                ", state=" + state +
-                ", activeSessions=" + sessionCount.get() +
-                ", totalSessions=" + totalSessionsCreated.get() +
-                '}';
+        return "ClientConnection{"
+                + "connectionId='" + connectionId + '\''
+                + ", clientId='" + clientId + '\''
+                + ", state=" + state
+                + ", activeSessions=" + sessionCount.get()
+                + ", totalSessions=" + totalSessionsCreated.get()
+                + '}';
     }
 }

@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -19,7 +18,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Centralized metrics collection for the MCP Proxy server.
  * Provides counters, gauges, timers, and histograms for monitoring server health and performance.
- * 
+ *
  * <h2>Metric Categories</h2>
  * <ul>
  *   <li><b>Counters:</b> Cumulative counts (connections, sessions, tool calls)</li>
@@ -31,7 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Component
 public class ServerMetrics {
 
-    private static final Logger logger = LoggerFactory.getLogger(ServerMetrics.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ServerMetrics.class);
 
     private final MeterRegistry meterRegistry;
     private final ConnectionManager connectionManager;
@@ -140,7 +139,7 @@ public class ServerMetrics {
         // Register session outcome counters with status tags
         registerSessionOutcomeCounters();
 
-        logger.info("ServerMetrics initialized with histograms and per-tool timers");
+        LOGGER.info("ServerMetrics initialized with histograms and per-tool timers");
     }
 
     /**
@@ -171,7 +170,7 @@ public class ServerMetrics {
 
     /**
      * Gets or creates a timer for a specific tool.
-     * 
+     *
      * @param toolName the tool name
      * @return the timer for this tool
      */
@@ -228,7 +227,7 @@ public class ServerMetrics {
 
     /**
      * Records a session outcome with duration for histogram tracking.
-     * 
+     *
      * @param status the session outcome status (completed, failed, cancelled, timedout)
      * @param durationMs the session duration in milliseconds
      */
@@ -244,12 +243,12 @@ public class ServerMetrics {
         double durationSeconds = durationMs / 1000.0;
         sessionDurationHistogram.record(durationSeconds);
 
-        logger.trace("Recorded session outcome: status={}, duration={}ms", status, durationMs);
+        LOGGER.trace("Recorded session outcome: status={}, duration={}ms", status, durationMs);
     }
 
     /**
      * Records session duration in the histogram.
-     * 
+     *
      * @param durationSeconds the duration in seconds
      */
     public void recordSessionDuration(double durationSeconds) {
@@ -284,7 +283,7 @@ public class ServerMetrics {
 
     /**
      * Records a tool call outcome with duration for histogram tracking.
-     * 
+     *
      * @param toolName the name of the tool
      * @param status the outcome status (success, failed)
      * @param durationMs the tool call duration in milliseconds
@@ -305,13 +304,13 @@ public class ServerMetrics {
         double durationSeconds = durationMs / 1000.0;
         toolCallDurationHistogram.record(durationSeconds);
 
-        logger.trace("Recorded tool call outcome: tool={}, status={}, duration={}ms", 
+        LOGGER.trace("Recorded tool call outcome: tool={}, status={}, duration={}ms",
                 toolName, status, durationMs);
     }
 
     /**
      * Records tool call duration in the histogram.
-     * 
+     *
      * @param durationSeconds the duration in seconds
      */
     public void recordToolCallDuration(double durationSeconds) {

@@ -14,28 +14,28 @@ import java.util.UUID;
  */
 @Repository
 public interface PolicyTypeRepository extends JpaRepository<PolicyTypeEntity, UUID> {
-    
+
     /**
      * Find a policy type by name (e.g., UNLIMITED, MONTHLY, YEARLY).
      */
     Optional<PolicyTypeEntity> findByName(String name);
-    
+
     /**
      * Find all enabled policy types.
      */
     List<PolicyTypeEntity> findByEnabledTrue();
-    
+
     /**
      * Check if a policy type with the given name exists.
      */
     boolean existsByName(String name);
-    
+
     /**
      * Find the unlimited policy type.
      */
     @Query("SELECT pt FROM PolicyTypeEntity pt WHERE pt.name = 'UNLIMITED' AND pt.enabled = true")
     Optional<PolicyTypeEntity> findUnlimitedPolicyType();
-    
+
     /**
      * Find policy types that have a reset period (non-unlimited).
      */

@@ -10,7 +10,6 @@ import org.springframework.web.socket.WebSocketSession;
 
 import java.util.Collection;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -23,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class ConnectionManager {
 
-    private static final Logger logger = LoggerFactory.getLogger(ConnectionManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConnectionManager.class);
 
     private final McpProxyProperties properties;
     private final Map<String, ClientConnection> connections;
@@ -39,7 +38,7 @@ public class ConnectionManager {
                 .description("Number of active WebSocket connections")
                 .register(meterRegistry);
 
-        Gauge.builder("mcp.sessions.active", this, cm -> 
+        Gauge.builder("mcp.sessions.active", this, cm ->
                 cm.getAllConnections().stream()
                         .mapToInt(ClientConnection::getActiveSessionCount)
                         .sum())
@@ -56,7 +55,7 @@ public class ConnectionManager {
      */
     public ClientConnection createConnection(WebSocketSession webSocketSession, String clientId) {
         String connectionId = generateConnectionId();
-        
+
         ClientConnection connection = ClientConnection.builder()
                 .connectionId(connectionId)
                 .clientId(clientId)
@@ -65,8 +64,8 @@ public class ConnectionManager {
                 .build();
 
         connections.put(connectionId, connection);
-        logger.info("Created connection {} for client {}", connectionId, clientId);
-        
+        LOGGER.info("Created connection {} for client {}", connectionId, clientId);
+
         return connection;
     }
 
@@ -79,10 +78,10 @@ public class ConnectionManager {
         ClientConnection connection = connections.remove(connectionId);
         if (connection != null) {
             // Remove all session mappings
-            connection.getAllSessions().forEach(session -> 
+            connection.getAllSessions().forEach(session ->
                 sessionToConnectionMap.remove(session.getSessionId())
             );
-            logger.info("Removed connection {} for client {}", connectionId, connection.getClientId());
+            LOGGER.info("Removed connection {} for client {}", connectionId, connection.getClientId());
         }
     }
 
@@ -120,7 +119,7 @@ public class ConnectionManager {
             return getConnection(connectionId)
                     .flatMap(conn -> conn.getSession(sessionId));
         }
-        
+
         // Fallback: search all connections
         return connections.values().stream()
                 .map(conn -> conn.getSession(sessionId))
@@ -180,7 +179,7 @@ public class ConnectionManager {
      * Initiates graceful shutdown of all connections.
      */
     public void initiateGracefulShutdown() {
-        logger.info("Initiating graceful shutdown of {} connections", connections.size());
+        LOGGER.info("Initiating graceful shutdown of {} connections", connections.size());
         connections.values().forEach(ClientConnection::initiateGracefulShutdown);
     }
 
@@ -190,7 +189,7 @@ public class ConnectionManager {
      * @param reason the disconnect reason
      */
     public void disconnectAll(String reason) {
-        logger.info("Disconnecting all {} connections: {}", connections.size(), reason);
+        LOGGER.info("Disconnecting all {} connections: {}", connections.size(), reason);
         connections.values().forEach(conn -> conn.disconnect(reason));
         connections.clear();
         sessionToConnectionMap.clear();

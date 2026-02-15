@@ -19,7 +19,7 @@ public record LowTokenNotificationEvent(
     String policyTypeName,
     LocalDateTime timestamp
 ) {
-    
+
     /**
      * Creates a notification event from allowance data.
      */
@@ -46,15 +46,15 @@ public record LowTokenNotificationEvent(
             LocalDateTime.now()
         );
     }
-    
+
     /**
      * Gets a human-readable message for this notification.
      */
     public String getMessage() {
-        String resetInfo = daysUntilReset != null 
+        String resetInfo = daysUntilReset != null
             ? String.format(" Tokens will reset in %d days.", daysUntilReset)
             : "";
-        
+
         return String.format(
             "Low token warning for %s on model %s: %d tokens remaining (threshold: %d, limit: %d).%s",
             customerName,

@@ -57,10 +57,18 @@ public record McpProxyProperties(
             boolean requireTls
     ) {
         public ConnectionConfig {
-            if (idleTimeoutSeconds <= 0) idleTimeoutSeconds = 300;
-            if (heartbeatIntervalSeconds <= 0) heartbeatIntervalSeconds = 30;
-            if (maxConnectionsPerClient <= 0) maxConnectionsPerClient = 5;
-            if (maxConcurrentSessions <= 0) maxConcurrentSessions = 10;
+            if (idleTimeoutSeconds <= 0) {
+                idleTimeoutSeconds = 300;
+            }
+            if (heartbeatIntervalSeconds <= 0) {
+                heartbeatIntervalSeconds = 30;
+            }
+            if (maxConnectionsPerClient <= 0) {
+                maxConnectionsPerClient = 5;
+            }
+            if (maxConcurrentSessions <= 0) {
+                maxConcurrentSessions = 10;
+            }
         }
     }
 
@@ -78,10 +86,18 @@ public record McpProxyProperties(
             int toolCallRetryDelayMs
     ) {
         public SessionConfig {
-            if (maxDurationSeconds <= 0) maxDurationSeconds = 600;
-            if (toolCallTimeoutSeconds <= 0) toolCallTimeoutSeconds = 60;
-            if (toolCallRetryAttempts < 0) toolCallRetryAttempts = 2;
-            if (toolCallRetryDelayMs <= 0) toolCallRetryDelayMs = 1000;
+            if (maxDurationSeconds <= 0) {
+                maxDurationSeconds = 600;
+            }
+            if (toolCallTimeoutSeconds <= 0) {
+                toolCallTimeoutSeconds = 60;
+            }
+            if (toolCallRetryAttempts < 0) {
+                toolCallRetryAttempts = 2;
+            }
+            if (toolCallRetryDelayMs <= 0) {
+                toolCallRetryDelayMs = 1000;
+            }
         }
     }
 
@@ -96,8 +112,12 @@ public record McpProxyProperties(
             int flushIntervalMs
     ) {
         public StreamingConfig {
-            if (chunkSize <= 0) chunkSize = 100;
-            if (flushIntervalMs <= 0) flushIntervalMs = 50;
+            if (chunkSize <= 0) {
+                chunkSize = 100;
+            }
+            if (flushIntervalMs <= 0) {
+                flushIntervalMs = 50;
+            }
         }
     }
 
@@ -115,10 +135,18 @@ public record McpProxyProperties(
             int halfOpenMaxCalls
     ) {
         public CircuitBreakerConfig {
-            if (failureThreshold <= 0) failureThreshold = 5;
-            if (successThreshold <= 0) successThreshold = 3;
-            if (timeoutSeconds <= 0) timeoutSeconds = 30;
-            if (halfOpenMaxCalls <= 0) halfOpenMaxCalls = 3;
+            if (failureThreshold <= 0) {
+                failureThreshold = 5;
+            }
+            if (successThreshold <= 0) {
+                successThreshold = 3;
+            }
+            if (timeoutSeconds <= 0) {
+                timeoutSeconds = 30;
+            }
+            if (halfOpenMaxCalls <= 0) {
+                halfOpenMaxCalls = 3;
+            }
         }
     }
 

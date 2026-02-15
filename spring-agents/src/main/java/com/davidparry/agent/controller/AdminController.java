@@ -1,16 +1,60 @@
 package com.davidparry.agent.controller;
 
-import com.davidparry.agent.dto.*;
-import com.davidparry.agent.entity.*;
+import com.davidparry.agent.dto.AdminCustomerSummaryResponse;
+import com.davidparry.agent.dto.AgentConfigResponse;
+import com.davidparry.agent.dto.AgentTypeCustomersResponse;
+import com.davidparry.agent.dto.AgentTypeStatisticsResponse;
+import com.davidparry.agent.dto.AllowancesByModelResponse;
+import com.davidparry.agent.dto.AssignAgentTypeRequest;
+import com.davidparry.agent.dto.AuditCleanupRequest;
+import com.davidparry.agent.dto.AuditCleanupResponse;
+import com.davidparry.agent.dto.AuditLogResponse;
+import com.davidparry.agent.dto.AuditStatisticsResponse;
+import com.davidparry.agent.dto.BulkAllowanceUpdateRequest;
+import com.davidparry.agent.dto.BulkAssignAgentTypesRequest;
+import com.davidparry.agent.dto.BulkUpdateResponse;
+import com.davidparry.agent.dto.CreatePolicyTypeRequest;
+import com.davidparry.agent.dto.CustomerAgentTypeResponse;
+import com.davidparry.agent.dto.CustomerAgentTypesResponse;
+import com.davidparry.agent.dto.CustomerAllowanceSummary;
+import com.davidparry.agent.dto.CustomerConnectionStatusResponse;
+import com.davidparry.agent.dto.CustomerDisableResponse;
+import com.davidparry.agent.dto.CustomerResponse;
+import com.davidparry.agent.dto.ModelAllowanceResponse;
+import com.davidparry.agent.dto.ModelResponse;
+import com.davidparry.agent.dto.PolicyTypeResponse;
+import com.davidparry.agent.dto.SystemStatisticsResponse;
+import com.davidparry.agent.dto.TokenStatisticsResponse;
+import com.davidparry.agent.dto.UpdateAgentConfigRequest;
+import com.davidparry.agent.dto.UpdateCustomerAgentTypeRequest;
+import com.davidparry.agent.dto.UpdateModelRequest;
+import com.davidparry.agent.dto.UpdatePolicyTypeRequest;
+import com.davidparry.agent.dto.UsageResetResponse;
+import com.davidparry.agent.entity.AgentConfigEntity;
+import com.davidparry.agent.entity.AgentExecutionConfigEntity;
+import com.davidparry.agent.entity.CustomerAgentTypeEntity;
+import com.davidparry.agent.entity.CustomerEntity;
+import com.davidparry.agent.entity.CustomerModelAllowanceEntity;
+import com.davidparry.agent.entity.LlmModelEntity;
+import com.davidparry.agent.entity.PolicyTypeEntity;
+import com.davidparry.agent.entity.SecurityAuditLogEntity;
 import com.davidparry.agent.protocol.dto.AgentType;
-import com.davidparry.agent.repository.*;
-import com.davidparry.agent.service.*;
+import com.davidparry.agent.repository.AgentConfigRepository;
+import com.davidparry.agent.repository.CustomerAgentTypeRepository;
+import com.davidparry.agent.repository.CustomerModelAllowanceRepository;
+import com.davidparry.agent.repository.CustomerRepository;
+import com.davidparry.agent.repository.CustomerTokenRepository;
+import com.davidparry.agent.repository.LlmModelRepository;
+import com.davidparry.agent.repository.PolicyTypeRepository;
+import com.davidparry.agent.repository.SecurityAuditLogRepository;
+import com.davidparry.agent.service.AdminService;
+import com.davidparry.agent.service.CustomerUsageService;
+import com.davidparry.agent.service.LlmModelService;
+import com.davidparry.agent.service.SecurityAuditService;
 import com.davidparry.agent.session.ClientConnection;
 import com.davidparry.agent.session.ConnectionManager;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -23,16 +67,30 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 /**
  * REST API for administrative operations.
  * Requires admin token authentication via Authorization header (Bearer token).
  * All actions are logged to the security audit trail.
- * 
+ *
  * Authentication is handled by AdminAuthenticationFilter.
  */
 @RestController
@@ -40,7 +98,7 @@ import java.util.*;
 @SecurityRequirement(name = "AdminBearerAuth")
 public class AdminController {
 
-    private static final Logger logger = LoggerFactory.getLogger(AdminController.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AdminController.class);
 
     private final AdminService adminService;
     private final CustomerRepository customerRepository;
@@ -101,16 +159,16 @@ public class AdminController {
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
             @Parameter(description = "Filter by enabled status") @RequestParam(required = false) Boolean enabled) {
-        
+
         Pageable pageable = PageRequest.of(page, size);
         Page<CustomerEntity> customers;
-        
+
         if (enabled != null) {
             customers = customerRepository.findByEnabled(enabled, pageable);
         } else {
             customers = customerRepository.findAll(pageable);
         }
-        
+
         Page<AdminCustomerSummaryResponse> response = customers.map(this::toAdminCustomerSummary);
         return ResponseEntity.ok(response);
     }
@@ -260,7 +318,7 @@ public class AdminController {
     public ResponseEntity<ModelResponse> updateModel(
             @Parameter(description = "Model identifier (e.g., claude-sonnet-4-5)") @PathVariable String model,
             @RequestBody UpdateModelRequest request) {
-        
+
         return modelRepository.findById(model)
             .map(llmModel -> {
                 if (request.displayName() != null) {
@@ -275,15 +333,15 @@ public class AdminController {
                 if (request.enabled() != null) {
                     llmModel.setEnabled(request.enabled());
                 }
-                
+
                 llmModel = modelRepository.save(llmModel);
-                
+
                 auditService.logAdminModelAction(
                     SecurityAuditLogEntity.EventType.ADMIN_MODEL_UPDATED,
                     model,
                     "Model updated"
                 );
-                
+
                 return ResponseEntity.ok(toModelResponse(llmModel));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -307,13 +365,13 @@ public class AdminController {
             .map(llmModel -> {
                 llmModel.setEnabled(false);
                 llmModel = modelRepository.save(llmModel);
-                
+
                 auditService.logAdminModelAction(
                     SecurityAuditLogEntity.EventType.ADMIN_MODEL_DISABLED,
                     model,
                     "Model disabled"
                 );
-                
+
                 return ResponseEntity.ok(toModelResponse(llmModel));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -337,13 +395,13 @@ public class AdminController {
             .map(llmModel -> {
                 llmModel.setEnabled(true);
                 llmModel = modelRepository.save(llmModel);
-                
+
                 auditService.logAdminModelAction(
                     SecurityAuditLogEntity.EventType.ADMIN_MODEL_ENABLED,
                     model,
                     "Model enabled"
                 );
-                
+
                 return ResponseEntity.ok(toModelResponse(llmModel));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -383,29 +441,29 @@ public class AdminController {
     @Transactional
     public ResponseEntity<PolicyTypeResponse> createPolicyType(
             @RequestBody CreatePolicyTypeRequest request) {
-        
+
         if (request.name() == null || request.name().isBlank()) {
             return ResponseEntity.badRequest().build();
         }
-        
+
         if (policyTypeRepository.existsByName(request.name())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
-        
+
         PolicyTypeEntity policyType = new PolicyTypeEntity();
         policyType.setName(request.name());
         policyType.setDescription(request.description());
         policyType.setResetDays(request.resetDays());
         policyType.setEnabled(true);
-        
+
         policyType = policyTypeRepository.save(policyType);
-        
+
         auditService.logAdminAction(
             SecurityAuditLogEntity.EventType.ADMIN_POLICY_TYPE_CREATED,
             "Policy type created: " + request.name(),
             null
         );
-        
+
         return ResponseEntity.status(HttpStatus.CREATED).body(toPolicyTypeResponse(policyType));
     }
 
@@ -424,7 +482,7 @@ public class AdminController {
     public ResponseEntity<PolicyTypeResponse> updatePolicyType(
             @Parameter(description = "Policy type UUID") @PathVariable UUID id,
             @RequestBody UpdatePolicyTypeRequest request) {
-        
+
         return policyTypeRepository.findById(id)
             .map(policyType -> {
                 if (request.description() != null) {
@@ -436,15 +494,15 @@ public class AdminController {
                 if (request.enabled() != null) {
                     policyType.setEnabled(request.enabled());
                 }
-                
+
                 policyType = policyTypeRepository.save(policyType);
-                
+
                 auditService.logAdminAction(
                     SecurityAuditLogEntity.EventType.ADMIN_POLICY_TYPE_UPDATED,
                     "Policy type updated: " + policyType.getName(),
                     null
                 );
-                
+
                 return ResponseEntity.ok(toPolicyTypeResponse(policyType));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -468,13 +526,13 @@ public class AdminController {
             .map(policyType -> {
                 policyType.setEnabled(false);
                 policyType = policyTypeRepository.save(policyType);
-                
+
                 auditService.logAdminAction(
                     SecurityAuditLogEntity.EventType.ADMIN_POLICY_TYPE_DISABLED,
                     "Policy type disabled: " + policyType.getName(),
                     null
                 );
-                
+
                 return ResponseEntity.ok(toPolicyTypeResponse(policyType));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -499,14 +557,14 @@ public class AdminController {
         if (llmModel == null) {
             return ResponseEntity.notFound().build();
         }
-        
-        List<CustomerModelAllowanceEntity> allowances = 
+
+        List<CustomerModelAllowanceEntity> allowances =
             allowanceRepository.findAllByModelWithCustomer(model);
-        
+
         List<CustomerAllowanceSummary> summaries = allowances.stream()
             .map(this::toCustomerAllowanceSummary)
             .toList();
-        
+
         return ResponseEntity.ok(new AllowancesByModelResponse(
             model,
             llmModel.getDisplayName(),
@@ -530,45 +588,45 @@ public class AdminController {
     @Transactional
     public ResponseEntity<BulkUpdateResponse> bulkUpdateAllowances(
             @RequestBody BulkAllowanceUpdateRequest request) {
-        
+
         if (request.model() == null || request.model().isBlank()) {
             return ResponseEntity.badRequest().build();
         }
-        
+
         if (!modelRepository.existsById(request.model())) {
             return ResponseEntity.notFound().build();
         }
-        
+
         int updated;
         PolicyTypeEntity policyType = null;
-        
+
         if (request.policyTypeName() != null && !request.policyTypeName().isBlank()) {
             policyType = policyTypeRepository.findByName(request.policyTypeName()).orElse(null);
             if (policyType == null) {
                 return ResponseEntity.badRequest().build();
             }
             updated = allowanceRepository.bulkUpdateAllowanceAndPolicyForModel(
-                request.model(), 
-                request.allowedTokens(), 
+                request.model(),
+                request.allowedTokens(),
                 policyType,
                 LocalDateTime.now()
             );
         } else {
             updated = allowanceRepository.bulkUpdateAllowanceForModel(
-                request.model(), 
-                request.allowedTokens(), 
+                request.model(),
+                request.allowedTokens(),
                 LocalDateTime.now()
             );
         }
-        
+
         auditService.logAdminAction(
             SecurityAuditLogEntity.EventType.ADMIN_ALLOWANCE_BULK_UPDATED,
             String.format("Bulk updated %d allowances for model %s to %s tokens",
-                         updated, request.model(), 
+                         updated, request.model(),
                          request.allowedTokens() == null ? "UNLIMITED" : request.allowedTokens()),
             null
         );
-        
+
         return ResponseEntity.ok(new BulkUpdateResponse(
             request.model(),
             updated,
@@ -594,15 +652,15 @@ public class AdminController {
         if (!modelRepository.existsById(model)) {
             return ResponseEntity.notFound().build();
         }
-        
+
         int reset = allowanceRepository.resetUsageForModel(model, LocalDateTime.now());
-        
+
         auditService.logAdminAction(
             SecurityAuditLogEntity.EventType.ADMIN_USAGE_RESET,
             String.format("Reset usage for %d allowances on model %s", reset, model),
             null
         );
-        
+
         return ResponseEntity.ok(new UsageResetResponse(model, reset));
     }
 
@@ -621,15 +679,15 @@ public class AdminController {
     @GetMapping("/audit")
     public ResponseEntity<Page<AuditLogResponse>> queryAuditLogs(
             @Parameter(description = "Filter by customer UUID") @RequestParam(required = false) UUID customerId,
-            @Parameter(description = "Filter by event type (e.g., TOKEN_CREATED, ADMIN_CUSTOMER_DISABLED)") 
+            @Parameter(description = "Filter by event type (e.g., TOKEN_CREATED, ADMIN_CUSTOMER_DISABLED)")
                 @RequestParam(required = false) String eventType,
-            @Parameter(description = "Filter by event category (e.g., TOKEN, ADMIN, AUTHENTICATION)") 
+            @Parameter(description = "Filter by event category (e.g., TOKEN, ADMIN, AUTHENTICATION)")
                 @RequestParam(required = false) String eventCategory,
             @Parameter(description = "Filter events from this date/time") @RequestParam(required = false) LocalDateTime from,
             @Parameter(description = "Filter events until this date/time") @RequestParam(required = false) LocalDateTime to,
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "50") int size) {
-        
+
         SecurityAuditLogEntity.EventType eventTypeEnum = null;
         if (eventType != null) {
             try {
@@ -638,7 +696,7 @@ public class AdminController {
                 return ResponseEntity.badRequest().build();
             }
         }
-        
+
         SecurityAuditLogEntity.EventCategory categoryEnum = null;
         if (eventCategory != null) {
             try {
@@ -647,11 +705,11 @@ public class AdminController {
                 return ResponseEntity.badRequest().build();
             }
         }
-        
+
         Pageable pageable = PageRequest.of(page, size);
         Page<SecurityAuditLogEntity> logs = auditLogRepository.findByFilters(
             customerId, eventTypeEnum, categoryEnum, from, to, pageable);
-        
+
         Page<AuditLogResponse> response = logs.map(this::toAuditLogResponse);
         return ResponseEntity.ok(response);
     }
@@ -667,22 +725,22 @@ public class AdminController {
     @Tag(name = "Admin - Audit")
     @GetMapping("/audit/stats")
     public ResponseEntity<AuditStatisticsResponse> getAuditStatistics(
-            @Parameter(description = "Count events since this date/time (default: 24 hours ago)") 
+            @Parameter(description = "Count events since this date/time (default: 24 hours ago)")
                 @RequestParam(required = false) LocalDateTime since) {
-        
+
         LocalDateTime effectiveSince = since != null ? since : LocalDateTime.now().minusDays(1);
-        
+
         List<Object[]> counts = auditLogRepository.countEventsByTypeSince(effectiveSince);
         Map<String, Long> eventCounts = new HashMap<>();
         long total = 0;
-        
+
         for (Object[] row : counts) {
             String type = ((SecurityAuditLogEntity.EventType) row[0]).name();
             Long count = ((Number) row[1]).longValue();
             eventCounts.put(type, count);
             total += count;
         }
-        
+
         return ResponseEntity.ok(new AuditStatisticsResponse(eventCounts, total, effectiveSince));
     }
 
@@ -700,19 +758,19 @@ public class AdminController {
     @Transactional
     public ResponseEntity<AuditCleanupResponse> cleanupAuditLogs(
             @RequestBody AuditCleanupRequest request) {
-        
+
         if (request.before() == null) {
             return ResponseEntity.badRequest().build();
         }
-        
+
         int deleted = auditLogRepository.deleteByCreatedAtBefore(request.before());
-        
+
         auditService.logAdminAction(
             SecurityAuditLogEntity.EventType.ADMIN_AUDIT_CLEANUP,
             String.format("Deleted %d audit logs before %s", deleted, request.before()),
             null
         );
-        
+
         return ResponseEntity.ok(new AuditCleanupResponse(deleted, request.before()));
     }
 
@@ -743,9 +801,9 @@ public class AdminController {
 
     @Operation(
         summary = "Get customer connection status",
-        description = "Returns whether a customer currently has an active WebSocket connection, " +
-                      "along with details about all active connections and sessions. " +
-                      "This is a real-time check against the in-memory connection manager."
+        description = "Returns whether a customer currently has an active WebSocket connection, "
+                      + "along with details about all active connections and sessions. "
+                      + "This is a real-time check against the in-memory connection manager."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Successfully retrieved connection status"),
@@ -756,19 +814,19 @@ public class AdminController {
     @GetMapping("/stats/customer/{customerId}/connection")
     public ResponseEntity<CustomerConnectionStatusResponse> getCustomerConnectionStatus(
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId) {
-        
+
         // Verify customer exists
         Optional<CustomerEntity> customerOpt = customerRepository.findByCustomerId(customerId);
         if (customerOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        
+
         CustomerEntity customer = customerOpt.get();
         String customerIdStr = customerId.toString();
-        
+
         // Get all connections for this customer
         Collection<ClientConnection> connections = connectionManager.getConnectionsByCustomerId(customerIdStr);
-        
+
         // Build connection details for active connections only
         List<CustomerConnectionStatusResponse.ConnectionDetail> connectionDetails = connections.stream()
                 .filter(ClientConnection::isActive)
@@ -783,11 +841,11 @@ public class AdminController {
                     conn.getIdleTimeMs()
                 ))
                 .toList();
-        
+
         int totalSessions = connectionDetails.stream()
                 .mapToInt(CustomerConnectionStatusResponse.ConnectionDetail::activeSessions)
                 .sum();
-        
+
         return ResponseEntity.ok(new CustomerConnectionStatusResponse(
             customerId,
             customer.getName(),
@@ -832,7 +890,7 @@ public class AdminController {
     @GetMapping("/agent-types/{agentType}")
     @Transactional(readOnly = true)
     public ResponseEntity<AgentConfigResponse> getAgentType(
-            @Parameter(description = "Agent type (e.g., ANALYST, ENGINEER, REVIEWER, DIAGNOSTICIAN)") 
+            @Parameter(description = "Agent type (e.g., ANALYST, ENGINEER, REVIEWER, DIAGNOSTICIAN)")
             @PathVariable String agentType) {
         try {
             AgentType type = AgentType.valueOf(agentType.toUpperCase());
@@ -861,21 +919,21 @@ public class AdminController {
     public ResponseEntity<AgentConfigResponse> updateAgentType(
             @Parameter(description = "Agent type") @PathVariable String agentType,
             @RequestBody UpdateAgentConfigRequest request) {
-        
+
         AgentType type;
         try {
             type = AgentType.valueOf(agentType.toUpperCase());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
-        
+
         Optional<AgentConfigEntity> configOpt = agentConfigRepository.findByAgentType(type);
         if (configOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        
+
         AgentConfigEntity config = configOpt.get();
-        
+
         if (request.name() != null) {
             config.setName(request.name());
         }
@@ -895,7 +953,7 @@ public class AdminController {
         if (request.enabled() != null) {
             config.setEnabled(request.enabled());
         }
-        
+
         // Update default execution config if provided
         AgentExecutionConfigEntity execConfig = config.getDefaultExecutionConfig();
         if (execConfig != null) {
@@ -915,16 +973,16 @@ public class AdminController {
                 execConfig.setRetryDelayMs(request.retryDelayMs());
             }
         }
-        
+
         config.setVersion(config.getVersion() + 1);
         config = agentConfigRepository.save(config);
-        
+
         auditService.logAdminAction(
             SecurityAuditLogEntity.EventType.ADMIN_AGENT_CONFIG_UPDATED,
             "Agent config updated: " + agentType,
             null
         );
-        
+
         return ResponseEntity.ok(toAgentConfigResponse(config));
     }
 
@@ -943,25 +1001,25 @@ public class AdminController {
     @Transactional
     public ResponseEntity<AgentConfigResponse> disableAgentType(
             @Parameter(description = "Agent type") @PathVariable String agentType) {
-        
+
         AgentType type;
         try {
             type = AgentType.valueOf(agentType.toUpperCase());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
-        
+
         return agentConfigRepository.findByAgentType(type)
             .map(config -> {
                 config.setEnabled(false);
                 config = agentConfigRepository.save(config);
-                
+
                 auditService.logAdminAction(
                     SecurityAuditLogEntity.EventType.ADMIN_AGENT_CONFIG_DISABLED,
                     "Agent config disabled: " + agentType,
                     null
                 );
-                
+
                 return ResponseEntity.ok(toAgentConfigResponse(config));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -982,25 +1040,25 @@ public class AdminController {
     @Transactional
     public ResponseEntity<AgentConfigResponse> enableAgentType(
             @Parameter(description = "Agent type") @PathVariable String agentType) {
-        
+
         AgentType type;
         try {
             type = AgentType.valueOf(agentType.toUpperCase());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
-        
+
         return agentConfigRepository.findByAgentType(type)
             .map(config -> {
                 config.setEnabled(true);
                 config = agentConfigRepository.save(config);
-                
+
                 auditService.logAdminAction(
                     SecurityAuditLogEntity.EventType.ADMIN_AGENT_CONFIG_ENABLED,
                     "Agent config enabled: " + agentType,
                     null
                 );
-                
+
                 return ResponseEntity.ok(toAgentConfigResponse(config));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -1021,22 +1079,22 @@ public class AdminController {
     @GetMapping("/customers/{customerId}/agent-types")
     public ResponseEntity<CustomerAgentTypesResponse> getCustomerAgentTypes(
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId) {
-        
+
         Optional<CustomerEntity> customerOpt = customerRepository.findByCustomerId(customerId);
         if (customerOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        
+
         CustomerEntity customer = customerOpt.get();
-        List<CustomerAgentTypeEntity> assignments = 
+        List<CustomerAgentTypeEntity> assignments =
             customerAgentTypeRepository.findByCustomerCustomerId(customerId);
-        
+
         List<CustomerAgentTypeResponse> responses = assignments.stream()
             .map(this::toCustomerAgentTypeResponse)
             .toList();
-        
+
         int enabledCount = (int) assignments.stream().filter(CustomerAgentTypeEntity::isEnabled).count();
-        
+
         return ResponseEntity.ok(new CustomerAgentTypesResponse(
             customerId,
             customer.getName(),
@@ -1063,41 +1121,41 @@ public class AdminController {
     public ResponseEntity<CustomerAgentTypeResponse> assignAgentTypeToCustomer(
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
             @RequestBody AssignAgentTypeRequest request) {
-        
+
         Optional<CustomerEntity> customerOpt = customerRepository.findByCustomerId(customerId);
         if (customerOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        
+
         AgentType agentType;
         try {
             agentType = AgentType.valueOf(request.agentType().toUpperCase());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
-        
+
         // Check if already assigned
         if (customerAgentTypeRepository.existsByCustomerCustomerIdAndAgentType(customerId, agentType)) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
-        
+
         CustomerEntity customer = customerOpt.get();
-        
+
         CustomerAgentTypeEntity assignment = new CustomerAgentTypeEntity();
         assignment.setCustomer(customer);
         assignment.setAgentType(agentType);
         assignment.setEnabled(true);
         assignment.setCustomTokenLimit(request.customTokenLimit());
         assignment.setPriority(request.priority() != null ? request.priority() : 0);
-        
+
         assignment = customerAgentTypeRepository.save(assignment);
-        
+
         auditService.logAdminCustomerAction(
             SecurityAuditLogEntity.EventType.ADMIN_CUSTOMER_AGENT_TYPE_ASSIGNED,
             customerId,
             "Agent type assigned: " + agentType
         );
-        
+
         return ResponseEntity.status(HttpStatus.CREATED).body(toCustomerAgentTypeResponse(assignment));
     }
 
@@ -1118,14 +1176,14 @@ public class AdminController {
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
             @Parameter(description = "Agent type") @PathVariable String agentType,
             @RequestBody UpdateCustomerAgentTypeRequest request) {
-        
+
         AgentType type;
         try {
             type = AgentType.valueOf(agentType.toUpperCase());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
-        
+
         return customerAgentTypeRepository.findByCustomerCustomerIdAndAgentType(customerId, type)
             .map(assignment -> {
                 if (request.enabled() != null) {
@@ -1137,15 +1195,15 @@ public class AdminController {
                 if (request.priority() != null) {
                     assignment.setPriority(request.priority());
                 }
-                
+
                 assignment = customerAgentTypeRepository.save(assignment);
-                
+
                 auditService.logAdminCustomerAction(
                     SecurityAuditLogEntity.EventType.ADMIN_CUSTOMER_AGENT_TYPE_UPDATED,
                     customerId,
                     "Agent type assignment updated: " + agentType
                 );
-                
+
                 return ResponseEntity.ok(toCustomerAgentTypeResponse(assignment));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -1167,26 +1225,26 @@ public class AdminController {
     public ResponseEntity<Void> removeAgentTypeFromCustomer(
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
             @Parameter(description = "Agent type") @PathVariable String agentType) {
-        
+
         AgentType type;
         try {
             type = AgentType.valueOf(agentType.toUpperCase());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
-        
+
         int deleted = customerAgentTypeRepository.deleteByCustomerCustomerIdAndAgentType(customerId, type);
-        
+
         if (deleted == 0) {
             return ResponseEntity.notFound().build();
         }
-        
+
         auditService.logAdminCustomerAction(
             SecurityAuditLogEntity.EventType.ADMIN_CUSTOMER_AGENT_TYPE_REMOVED,
             customerId,
             "Agent type removed: " + agentType
         );
-        
+
         return ResponseEntity.noContent().build();
     }
 
@@ -1206,15 +1264,15 @@ public class AdminController {
     public ResponseEntity<CustomerAgentTypesResponse> bulkAssignAgentTypes(
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
             @RequestBody BulkAssignAgentTypesRequest request) {
-        
+
         Optional<CustomerEntity> customerOpt = customerRepository.findByCustomerId(customerId);
         if (customerOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        
+
         CustomerEntity customer = customerOpt.get();
         List<CustomerAgentTypeEntity> newAssignments = new ArrayList<>();
-        
+
         for (String agentTypeStr : request.agentTypes()) {
             AgentType agentType;
             try {
@@ -1222,38 +1280,38 @@ public class AdminController {
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.badRequest().build();
             }
-            
+
             // Skip if already assigned
             if (customerAgentTypeRepository.existsByCustomerCustomerIdAndAgentType(customerId, agentType)) {
                 continue;
             }
-            
+
             CustomerAgentTypeEntity assignment = new CustomerAgentTypeEntity();
             assignment.setCustomer(customer);
             assignment.setAgentType(agentType);
             assignment.setEnabled(true);
             assignment.setCustomTokenLimit(request.defaultCustomTokenLimit());
             assignment.setPriority(request.defaultPriority() != null ? request.defaultPriority() : 0);
-            
+
             newAssignments.add(customerAgentTypeRepository.save(assignment));
         }
-        
+
         auditService.logAdminCustomerAction(
             SecurityAuditLogEntity.EventType.ADMIN_CUSTOMER_AGENT_TYPES_BULK_ASSIGNED,
             customerId,
             String.format("Bulk assigned %d agent types", newAssignments.size())
         );
-        
+
         // Return updated list
-        List<CustomerAgentTypeEntity> allAssignments = 
+        List<CustomerAgentTypeEntity> allAssignments =
             customerAgentTypeRepository.findByCustomerCustomerId(customerId);
-        
+
         List<CustomerAgentTypeResponse> responses = allAssignments.stream()
             .map(this::toCustomerAgentTypeResponse)
             .toList();
-        
+
         int enabledCount = (int) allAssignments.stream().filter(CustomerAgentTypeEntity::isEnabled).count();
-        
+
         return ResponseEntity.ok(new CustomerAgentTypesResponse(
             customerId,
             customer.getName(),
@@ -1276,29 +1334,29 @@ public class AdminController {
     @GetMapping("/agent-types/{agentType}/customers")
     public ResponseEntity<AgentTypeCustomersResponse> getCustomersByAgentType(
             @Parameter(description = "Agent type") @PathVariable String agentType) {
-        
+
         AgentType type;
         try {
             type = AgentType.valueOf(agentType.toUpperCase());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
-        
+
         List<CustomerAgentTypeEntity> assignments = customerAgentTypeRepository.findByAgentType(type);
-        
+
         List<CustomerAgentTypeResponse> responses = assignments.stream()
             .map(this::toCustomerAgentTypeResponse)
             .toList();
-        
+
         int enabledCount = (int) assignments.stream()
             .filter(a -> a.isEnabled() && a.getCustomer().isEnabled())
             .count();
-        
+
         // Get agent name from config
         String agentName = agentConfigRepository.findByAgentType(type)
             .map(AgentConfigEntity::getName)
             .orElse(type.name());
-        
+
         return ResponseEntity.ok(new AgentTypeCustomersResponse(
             type.name(),
             agentName,
@@ -1320,22 +1378,22 @@ public class AdminController {
     @GetMapping("/agent-types/stats")
     public ResponseEntity<AgentTypeStatisticsResponse> getAgentTypeStatistics() {
         List<Object[]> counts = customerAgentTypeRepository.countCustomersByAgentType();
-        
+
         Map<String, Long> customerCountByAgentType = new HashMap<>();
         long total = 0;
-        
+
         for (Object[] row : counts) {
             String type = ((AgentType) row[0]).name();
             Long count = ((Number) row[1]).longValue();
             customerCountByAgentType.put(type, count);
             total += count;
         }
-        
+
         // Include all agent types, even those with 0 customers
         for (AgentType type : AgentType.values()) {
             customerCountByAgentType.putIfAbsent(type.name(), 0L);
         }
-        
+
         return ResponseEntity.ok(new AgentTypeStatisticsResponse(
             customerCountByAgentType,
             total,
@@ -1348,7 +1406,7 @@ public class AdminController {
     private AdminCustomerSummaryResponse toAdminCustomerSummary(CustomerEntity customer) {
         int activeTokenCount = adminService.getActiveTokenCount(customer.getId());
         int allowanceCount = adminService.getAllowanceCount(customer.getId());
-        
+
         return new AdminCustomerSummaryResponse(
             customer.getId(),
             customer.getCustomerId(),
@@ -1362,13 +1420,13 @@ public class AdminController {
     }
 
     private CustomerResponse toCustomerResponse(CustomerEntity customer) {
-        List<CustomerModelAllowanceEntity> allowances = 
+        List<CustomerModelAllowanceEntity> allowances =
             customerUsageService.getCustomerAllowancesWithPolicyType(customer.getCustomerId());
-        
+
         List<ModelAllowanceResponse> allowanceResponses = allowances.stream()
             .map(this::toModelAllowanceResponse)
             .toList();
-        
+
         return new CustomerResponse(
             customer.getId(),
             customer.getCustomerId(),
@@ -1389,7 +1447,7 @@ public class AdminController {
     private ModelAllowanceResponse toModelAllowanceResponse(CustomerModelAllowanceEntity allowance) {
         PolicyTypeEntity policy = allowance.getPolicyType();
         Integer daysUntilReset = calculateDaysUntilReset(allowance, policy);
-        
+
         return new ModelAllowanceResponse(
             allowance.getId(),
             allowance.getLlmModel().getModel(),
@@ -1414,12 +1472,12 @@ public class AdminController {
         if (policy == null || policy.isUnlimited()) {
             return null;
         }
-        
+
         Integer resetDays = policy.getResetDays();
         if (resetDays == null || allowance.getTokensResetAt() == null) {
             return null;
         }
-        
+
         LocalDateTime nextReset = allowance.getTokensResetAt().plusDays(resetDays);
         long daysUntil = java.time.temporal.ChronoUnit.DAYS.between(LocalDateTime.now(), nextReset);
         return Math.max(0, (int) daysUntil);
@@ -1491,7 +1549,7 @@ public class AdminController {
                 execConfig.getRetryDelayMs()
             );
         }
-        
+
         LlmModelEntity model = config.getLlmModel();
         return new AgentConfigResponse(
             config.getId(),
@@ -1510,12 +1568,12 @@ public class AdminController {
 
     private CustomerAgentTypeResponse toCustomerAgentTypeResponse(CustomerAgentTypeEntity assignment) {
         CustomerEntity customer = assignment.getCustomer();
-        
+
         // Get agent name from config
         String agentName = agentConfigRepository.findByAgentType(assignment.getAgentType())
             .map(AgentConfigEntity::getName)
             .orElse(assignment.getAgentType().name());
-        
+
         return new CustomerAgentTypeResponse(
             assignment.getId(),
             customer.getCustomerId(),
