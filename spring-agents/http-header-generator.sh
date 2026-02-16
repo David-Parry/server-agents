@@ -97,8 +97,10 @@ echo "Config file: $CONFIG_FILE"
 echo ""
 
 # Run the TokenHashGenerator using Gradle (includes all dependencies)
-cd "$SCRIPT_DIR" && ./gradlew -q runTokenHashGenerator \
-    -PtokenArg="$JWT_TOKEN" \
-    -PcustomerIdArg="$CUSTOMER_UUID" \
-    -PsecretArg="$HASHING_SECRET" \
-    -PsecretVersionArg="$SECRET_VERSION"
+# Use environment variables instead of -P flags to avoid exposing secrets in process listings
+cd "$SCRIPT_DIR" && \
+    TOKEN_HASH_TOKEN="$JWT_TOKEN" \
+    TOKEN_HASH_CUSTOMER_ID="$CUSTOMER_UUID" \
+    TOKEN_HASH_SECRET="$HASHING_SECRET" \
+    TOKEN_HASH_SECRET_VERSION="$SECRET_VERSION" \
+    ./gradlew -q runTokenHashGenerator

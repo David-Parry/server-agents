@@ -227,6 +227,7 @@ tasks.named<com.github.spotbugs.snom.SpotBugsTask>("spotbugsTest").configure {
 }
 
 // Token Hash Generator task for http-header-generator.sh
+// Uses environment variables to avoid exposing secrets in process listings and build logs
 tasks.register<JavaExec>("runTokenHashGenerator") {
     group = "application"
     description = "Runs the TokenHashGenerator utility to create token hashes"
@@ -234,10 +235,10 @@ tasks.register<JavaExec>("runTokenHashGenerator") {
     classpath = sourceSets["main"].runtimeClasspath
 
     args = listOf(
-        project.findProperty("tokenArg")?.toString() ?: "",
-        project.findProperty("customerIdArg")?.toString() ?: "",
-        project.findProperty("secretArg")?.toString() ?: "",
-        project.findProperty("secretVersionArg")?.toString() ?: "V1"
+        System.getenv("TOKEN_HASH_TOKEN") ?: "",
+        System.getenv("TOKEN_HASH_CUSTOMER_ID") ?: "",
+        System.getenv("TOKEN_HASH_SECRET") ?: "",
+        System.getenv("TOKEN_HASH_SECRET_VERSION") ?: "V1"
     )
 }
 
