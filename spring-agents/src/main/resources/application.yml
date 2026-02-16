@@ -7,7 +7,7 @@ server: # WebSocket message size limits
 
 spring: # Database configuration
   datasource:
-    url: jdbc:h2:file:/Users/davidparry/code/github/server-agents/spring-agents/data/spring-agents;DB_CLOSE_DELAY=-1
+    url: jdbc:h2:file:./data/spring-agents;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
   
