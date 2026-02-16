@@ -7,6 +7,7 @@ import com.davidparry.agent.dto.CustomerCreatedResponse;
 import com.davidparry.agent.dto.CustomerResponse;
 import com.davidparry.agent.dto.GenerateTokenRequest;
 import com.davidparry.agent.dto.ModelAllowanceResponse;
+import com.davidparry.agent.dto.MonthlyTokenUsageResponse;
 import com.davidparry.agent.dto.PolicyTypeResponse;
 import com.davidparry.agent.dto.SetAllowanceRequest;
 import com.davidparry.agent.dto.TokenGeneratedResponse;
@@ -23,6 +24,7 @@ import com.davidparry.agent.repository.PolicyTypeRepository;
 import com.davidparry.agent.security.JwtTokenService;
 import com.davidparry.agent.service.CustomerTokenService;
 import com.davidparry.agent.service.CustomerUsageService;
+import com.davidparry.agent.service.LlmTokenUsageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -40,6 +42,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
@@ -66,18 +69,21 @@ public class CustomerController {
     private final CustomerRepository customerRepository;
     private final PolicyTypeRepository policyTypeRepository;
     private final JwtTokenService jwtTokenService;
+    private final LlmTokenUsageService llmTokenUsageService;
 
     public CustomerController(
             CustomerTokenService customerTokenService,
             CustomerUsageService customerUsageService,
             CustomerRepository customerRepository,
             PolicyTypeRepository policyTypeRepository,
-            JwtTokenService jwtTokenService) {
+            JwtTokenService jwtTokenService,
+            LlmTokenUsageService llmTokenUsageService) {
         this.customerTokenService = customerTokenService;
         this.customerUsageService = customerUsageService;
         this.customerRepository = customerRepository;
         this.policyTypeRepository = policyTypeRepository;
         this.jwtTokenService = jwtTokenService;
+        this.llmTokenUsageService = llmTokenUsageService;
     }
 
     @Operation(
@@ -588,6 +594,28 @@ public class CustomerController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    @Operation(
+        summary = "Get monthly token usage",
+        description = "Returns monthly-aggregated LLM token usage for a customer, broken down by model and agent type."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved token usage"),
+        @ApiResponse(responseCode = "404", description = "Customer not found")
+    })
+    @GetMapping("/{customerId}/token-usage")
+    public ResponseEntity<List<MonthlyTokenUsageResponse>> getTokenUsage(
+            @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
+            @Parameter(description = "Number of months to look back") @RequestParam(defaultValue = "12") int months,
+            @Parameter(description = "Optional model filter") @RequestParam(required = false) String model) {
+
+        if (!customerRepository.existsByCustomerId(customerId)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        List<MonthlyTokenUsageResponse> usage = llmTokenUsageService.getMonthlyUsage(customerId, months, model);
+        return ResponseEntity.ok(usage);
     }
 
     // ==================== Helper Methods ====================

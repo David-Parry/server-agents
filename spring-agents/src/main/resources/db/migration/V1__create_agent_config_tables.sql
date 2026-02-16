@@ -247,3 +247,28 @@ CREATE INDEX idx_audit_customer_id ON security_audit_log(customer_id);
 CREATE INDEX idx_audit_created_at ON security_audit_log(created_at);
 CREATE INDEX idx_audit_secret_version ON security_audit_log(secret_version);
 CREATE INDEX idx_audit_category_time ON security_audit_log(event_category, created_at);
+
+-- -----------------------------------------------------------------------------
+-- Part 10: LLM Token Usage Log Table (append-only per-call tracking)
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE llm_token_usage (
+    id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    customer_id UUID NOT NULL,
+    model VARCHAR(100) NOT NULL,
+    agent_type VARCHAR(50),
+    session_id VARCHAR(255),
+    prompt_tokens INT NOT NULL DEFAULT 0,
+    completion_tokens INT NOT NULL DEFAULT 0,
+    total_tokens INT NOT NULL DEFAULT 0,
+    tool_calls_count INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_token_usage_customer FOREIGN KEY (customer_id)
+        REFERENCES customer(id) ON DELETE CASCADE,
+    CONSTRAINT fk_token_usage_model FOREIGN KEY (model) REFERENCES llm_model(model)
+);
+
+CREATE INDEX idx_token_usage_customer_created ON llm_token_usage(customer_id, created_at);
+CREATE INDEX idx_token_usage_customer_model ON llm_token_usage(customer_id, model);
+CREATE INDEX idx_token_usage_session ON llm_token_usage(session_id);

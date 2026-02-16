@@ -345,6 +345,7 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
                     .systemPrompt(templateProcessor.processTemplate(systemPrompt, createSession.getPromptParams()))
                     .prompt(templateProcessor.processTemplate(agent.instructions(), createSession.getPromptParams()))
                     .model(model)
+                    .agentType(agent.type().name())
                     .streamingEnabled(createSession.isStreamResponse() && properties.streaming().enabled())
                     .tools(toolCallbacks)
                     .metadata(Map.of())

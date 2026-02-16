@@ -38,6 +38,7 @@ import {
   AssignAgentTypeRequest,
   BulkAssignAgentTypesRequest,
   UpdateCustomerAgentTypeRequest,
+  MonthlyTokenUsageResponse,
 } from './types';
 
 class ApiClient {
@@ -238,6 +239,19 @@ class ApiClient {
 
   async getTokenStatistics(): Promise<TokenStatisticsResponse[]> {
     return this.request('/api/admin/customers/tokens/stats');
+  }
+
+  // ============ Token Usage ============
+  async getCustomerTokenUsage(
+    customerId: string,
+    months?: number,
+    model?: string
+  ): Promise<MonthlyTokenUsageResponse[]> {
+    const params = new URLSearchParams();
+    if (months !== undefined) params.append('months', String(months));
+    if (model) params.append('model', model);
+    const query = params.toString();
+    return this.request(`/api/customers/${customerId}/token-usage${query ? `?${query}` : ''}`);
   }
 
   // ============ Allowances ============

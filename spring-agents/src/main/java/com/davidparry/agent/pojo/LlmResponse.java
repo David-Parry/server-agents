@@ -3,7 +3,7 @@ package com.davidparry.agent.pojo;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
- * Immutable record holding the response content and token count from an LLM execution.
+ * Immutable record holding the response content and token counts from an LLM execution.
  *
  * <p>This record is thread-safe by design:</p>
  * <ul>
@@ -13,7 +13,17 @@ import com.fasterxml.jackson.databind.JsonNode;
  * </ul>
  *
  * @param content the text content returned by the LLM
- * @param tokenCount the total number of tokens used (prompt + completion)
+ * @param promptTokens the number of prompt (input) tokens used
+ * @param completionTokens the number of completion (output) tokens used
+ * @param totalTokens the total number of tokens used (prompt + completion)
+ * @param success whether the LLM call was successful
  */
-public record LlmResponse(JsonNode content, int tokenCount, boolean success) {
+public record LlmResponse(JsonNode content, int promptTokens, int completionTokens, int totalTokens, boolean success) {
+
+    /**
+     * Backward-compatible accessor returning total tokens.
+     */
+    public int tokenCount() {
+        return totalTokens;
+    }
 }

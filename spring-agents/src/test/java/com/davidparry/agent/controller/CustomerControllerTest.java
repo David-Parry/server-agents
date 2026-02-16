@@ -10,6 +10,7 @@ import com.davidparry.agent.repository.PolicyTypeRepository;
 import com.davidparry.agent.security.JwtTokenService;
 import com.davidparry.agent.service.CustomerTokenService;
 import com.davidparry.agent.service.CustomerUsageService;
+import com.davidparry.agent.service.LlmTokenUsageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,6 +50,9 @@ class CustomerControllerTest {
     @Mock
     private JwtTokenService jwtTokenService;
 
+    @Mock
+    private LlmTokenUsageService llmTokenUsageService;
+
     private CustomerController controller;
 
     @BeforeEach
@@ -58,7 +62,8 @@ class CustomerControllerTest {
             customerUsageService,
             customerRepository,
             policyTypeRepository,
-            jwtTokenService
+            jwtTokenService,
+            llmTokenUsageService
         );
     }
 

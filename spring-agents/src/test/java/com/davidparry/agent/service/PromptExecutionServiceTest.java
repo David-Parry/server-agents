@@ -48,6 +48,9 @@ class PromptExecutionServiceTest {
     private LowTokenNotificationService notificationService;
 
     @Mock
+    private LlmTokenUsageService llmTokenUsageService;
+
+    @Mock
     private WebSocketSession webSocketSession;
 
     private MeterRegistry meterRegistry;
@@ -61,6 +64,7 @@ class PromptExecutionServiceTest {
                 ollamaChatModel,
                 customerUsageService,
                 notificationService,
+                llmTokenUsageService,
                 meterRegistry
         );
         // Configure WebSocket mock to return true for isOpen

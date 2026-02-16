@@ -370,3 +370,16 @@ export interface UpdateCustomerAgentTypeRequest {
   customTokenLimit?: number;
   priority?: number;
 }
+
+// Token Usage
+export interface MonthlyTokenUsageResponse {
+  year: number;
+  month: number;
+  model: string;
+  agentType: string;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  toolCallsCount: number;
+  callCount: number;
+}

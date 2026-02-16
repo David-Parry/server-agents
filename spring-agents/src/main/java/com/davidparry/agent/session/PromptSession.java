@@ -28,6 +28,7 @@ public record PromptSession(
         String prompt,
         String systemPrompt,
         String model,
+        String agentType,
         boolean streamingEnabled,
         List<ToolCallback> tools,
         Map<String, Object> metadata,
@@ -111,7 +112,7 @@ public record PromptSession(
         if (!isTerminal()) {
             cancelAllPendingCalls("Session completed");
             return new PromptSession(
-                    sessionId, connection, prompt, systemPrompt, model,
+                    sessionId, connection, prompt, systemPrompt, model, agentType,
                     streamingEnabled, tools, metadata, createdAt, deadline, responseSchema,
                     SessionState.COMPLETED, null, Instant.now(),
                     streamSequence, toolCallCount, pendingCalls, streamChunkConsumer, promptParams
@@ -129,7 +130,7 @@ public record PromptSession(
         if (!isTerminal()) {
             cancelAllPendingCalls("Session failed: " + errorMessage);
             return new PromptSession(
-                    sessionId, connection, prompt, systemPrompt, model,
+                    sessionId, connection, prompt, systemPrompt, model, agentType,
                     streamingEnabled, tools, metadata, createdAt, deadline, responseSchema,
                     SessionState.FAILED, errorMessage, Instant.now(),
                     streamSequence, toolCallCount, pendingCalls, streamChunkConsumer, promptParams
@@ -147,7 +148,7 @@ public record PromptSession(
         if (!isTerminal()) {
             cancelAllPendingCalls("Session cancelled: " + reason);
             return new PromptSession(
-                    sessionId, connection, prompt, systemPrompt, model,
+                    sessionId, connection, prompt, systemPrompt, model, agentType,
                     streamingEnabled, tools, metadata, createdAt, deadline, responseSchema,
                     SessionState.CANCELLED, reason, Instant.now(),
                     streamSequence, toolCallCount, pendingCalls, streamChunkConsumer, promptParams
@@ -164,7 +165,7 @@ public record PromptSession(
         if (!isTerminal()) {
             cancelAllPendingCalls("Session timed out");
             return new PromptSession(
-                    sessionId, connection, prompt, systemPrompt, model,
+                    sessionId, connection, prompt, systemPrompt, model, agentType,
                     streamingEnabled, tools, metadata, createdAt, deadline, responseSchema,
                     SessionState.TIMED_OUT, "Session timed out", Instant.now(),
                     streamSequence, toolCallCount, pendingCalls, streamChunkConsumer, promptParams
@@ -177,7 +178,7 @@ public record PromptSession(
 
     private PromptSession withState(SessionState newState) {
         return new PromptSession(
-                sessionId, connection, prompt, systemPrompt, model,
+                sessionId, connection, prompt, systemPrompt, model, agentType,
                 streamingEnabled, tools, metadata, createdAt, deadline, responseSchema,
                 newState, errorMessage, completedAt,
                 streamSequence, toolCallCount, pendingCalls, streamChunkConsumer, promptParams
@@ -191,7 +192,7 @@ public record PromptSession(
      */
     public PromptSession withStreamChunkConsumer(Consumer<StreamChunk> consumer) {
         return new PromptSession(
-                sessionId, connection, prompt, systemPrompt, model,
+                sessionId, connection, prompt, systemPrompt, model, agentType,
                 streamingEnabled, tools, metadata, createdAt, deadline, responseSchema,
                 state, errorMessage, completedAt,
                 streamSequence, toolCallCount, pendingCalls, consumer, promptParams
@@ -204,7 +205,7 @@ public record PromptSession(
      */
     public PromptSession withNextStreamSequence() {
         return new PromptSession(
-                sessionId, connection, prompt, systemPrompt, model,
+                sessionId, connection, prompt, systemPrompt, model, agentType,
                 streamingEnabled, tools, metadata, createdAt, deadline, responseSchema,
                 state, errorMessage, completedAt,
                 streamSequence + 1, toolCallCount, pendingCalls, streamChunkConsumer, promptParams
@@ -217,7 +218,7 @@ public record PromptSession(
      */
     public PromptSession withIncrementedToolCallCount() {
         return new PromptSession(
-                sessionId, connection, prompt, systemPrompt, model,
+                sessionId, connection, prompt, systemPrompt, model, agentType,
                 streamingEnabled, tools, metadata, createdAt, deadline, responseSchema,
                 state, errorMessage, completedAt,
                 streamSequence, toolCallCount + 1, pendingCalls, streamChunkConsumer, promptParams
@@ -370,6 +371,10 @@ public record PromptSession(
         return model;
     }
 
+    public String getAgentType() {
+        return agentType;
+    }
+
     public boolean isStreamingEnabled() {
         return streamingEnabled;
     }
@@ -422,6 +427,7 @@ public record PromptSession(
         private String prompt;
         private String systemPrompt;
         private String model;
+        private String agentType;
         private boolean streamingEnabled;
         private List<ToolCallback> tools = List.of();
         private Map<String, Object> metadata = Map.of();
@@ -464,6 +470,11 @@ public record PromptSession(
             return this;
         }
 
+        public Builder agentType(String agentType) {
+            this.agentType = agentType;
+            return this;
+        }
+
         public Builder streamingEnabled(boolean streamingEnabled) {
             this.streamingEnabled = streamingEnabled;
             return this;
@@ -502,6 +513,7 @@ public record PromptSession(
                     prompt,
                     systemPrompt,
                     model,
+                    agentType,
                     streamingEnabled,
                     tools,
                     metadata,
