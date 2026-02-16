@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class GracefulShutdownHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(GracefulShutdownHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(GracefulShutdownHandler.class);
     private static final int SHUTDOWN_TIMEOUT_SECONDS = 30;
     private static final int POLL_INTERVAL_MS = 500;
 
@@ -36,17 +36,17 @@ public class GracefulShutdownHandler {
             return;
         }
 
-        logger.info("Initiating graceful shutdown of MCP Proxy...");
+        LOGGER.info("Initiating graceful shutdown of MCP Proxy...");
 
         int connectionCount = connectionManager.getConnectionCount();
         int sessionCount = connectionManager.getTotalSessionCount();
 
         if (connectionCount == 0) {
-            logger.info("No active connections, shutdown complete");
+            LOGGER.info("No active connections, shutdown complete");
             return;
         }
 
-        logger.info("Draining {} connections with {} active sessions", connectionCount, sessionCount);
+        LOGGER.info("Draining {} connections with {} active sessions", connectionCount, sessionCount);
 
         // Initiate draining on all connections
         connectionManager.initiateGracefulShutdown();
@@ -57,20 +57,20 @@ public class GracefulShutdownHandler {
 
         while (connectionManager.getTotalSessionCount() > 0) {
             long elapsed = System.currentTimeMillis() - startTime;
-            
+
             if (elapsed > timeoutMs) {
-                logger.warn("Shutdown timeout reached, forcing disconnection of remaining sessions");
+                LOGGER.warn("Shutdown timeout reached, forcing disconnection of remaining sessions");
                 break;
             }
 
             int remaining = connectionManager.getTotalSessionCount();
-            logger.debug("Waiting for {} sessions to complete...", remaining);
+            LOGGER.debug("Waiting for {} sessions to complete...", remaining);
 
             try {
                 Thread.sleep(POLL_INTERVAL_MS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                logger.warn("Shutdown interrupted");
+                LOGGER.warn("Shutdown interrupted");
                 break;
             }
         }
@@ -78,7 +78,7 @@ public class GracefulShutdownHandler {
         // Force disconnect any remaining connections
         int remainingConnections = connectionManager.getConnectionCount();
         if (remainingConnections > 0) {
-            logger.info("Force disconnecting {} remaining connections", remainingConnections);
+            LOGGER.info("Force disconnecting {} remaining connections", remainingConnections);
             connectionManager.disconnectAll("Server shutdown");
         }
 
@@ -89,11 +89,11 @@ public class GracefulShutdownHandler {
                     connection.getWebSocketSession().close();
                 }
             } catch (Exception e) {
-                logger.warn("Error closing WebSocket for connection {}: {}",
+                LOGGER.warn("Error closing WebSocket for connection {}: {}",
                         connection.getConnectionId(), e.getMessage());
             }
         }
 
-        logger.info("Graceful shutdown complete");
+        LOGGER.info("Graceful shutdown complete");
     }
 }

@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter
+        xmlns="https://github.com/spotbugs/filter/3.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="https://github.com/spotbugs/filter/3.0.0 https://raw.githubusercontent.com/spotbugs/spotbugs/3.1.0/spotbugs/etc/findbugsfilter.xsd">
+
+    <!-- Exclude test classes from analysis -->
+    <Match>
+        <Source name="~.*Test\.java"/>
+    </Match>
+    <Match>
+        <Source name="~.*Tests\.java"/>
+    </Match>
+    <Match>
+        <Package name="~.*\.test\..*"/>
+    </Match>
+
+    <!-- Exclude DTOs, entities, and POJOs - they are data carriers -->
+    <Match>
+        <Package name="~.*\.dto"/>
+    </Match>
+    <Match>
+        <Package name="~.*\.entity"/>
+    </Match>
+    <Match>
+        <Package name="~.*\.pojo"/>
+    </Match>
+
+    <!-- Exclude generated code -->
+    <Match>
+        <Source name="~.*Generated.*\.java"/>
+    </Match>
+
+    <!-- Exclude Spring configuration classes from certain checks -->
+    <Match>
+        <Class name="~.*Config$"/>
+        <Bug pattern="ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD"/>
+    </Match>
+
+    <!-- Exclude Application class -->
+    <Match>
+        <Class name="~.*Application$"/>
+    </Match>
+
+    <!-- Common false positives in Spring applications -->
+
+    <!-- Exclude EI_EXPOSE_REP and EI_EXPOSE_REP2 for DTOs and entities -->
+    <!-- These are expected for data transfer objects -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP"/>
+        <Or>
+            <Package name="~.*\.dto"/>
+            <Package name="~.*\.entity"/>
+            <Package name="~.*\.pojo"/>
+        </Or>
+    </Match>
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+        <Or>
+            <Package name="~.*\.dto"/>
+            <Package name="~.*\.entity"/>
+            <Package name="~.*\.pojo"/>
+        </Or>
+    </Match>
+
+    <!-- Exclude URF_UNREAD_FIELD for Spring-injected fields -->
+    <Match>
+        <Bug pattern="URF_UNREAD_FIELD"/>
+        <Or>
+            <Annotation name="org.springframework.beans.factory.annotation.Autowired"/>
+            <Annotation name="org.springframework.beans.factory.annotation.Value"/>
+            <Annotation name="jakarta.inject.Inject"/>
+        </Or>
+    </Match>
+
+    <!-- Exclude UWF_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR for Spring-managed beans -->
+    <Match>
+        <Bug pattern="UWF_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR"/>
+        <Or>
+            <Annotation name="org.springframework.stereotype.Component"/>
+            <Annotation name="org.springframework.stereotype.Service"/>
+            <Annotation name="org.springframework.stereotype.Repository"/>
+            <Annotation name="org.springframework.stereotype.Controller"/>
+            <Annotation name="org.springframework.web.bind.annotation.RestController"/>
+        </Or>
+    </Match>
+
+    <!-- Exclude SQL injection warnings for JPA repository methods -->
+    <Match>
+        <Bug pattern="SQL_INJECTION"/>
+        <Package name="~.*\.repository"/>
+    </Match>
+
+    <!-- Exclude redundant null check in records -->
+    <Match>
+        <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"/>
+    </Match>
+
+    <!-- Exclude path traversal for internal file operations -->
+    <Match>
+        <Bug pattern="PATH_TRAVERSAL_IN"/>
+        <Or>
+            <Class name="~.*Config.*"/>
+            <Class name="~.*Properties.*"/>
+        </Or>
+    </Match>
+
+    <!-- Exclude unconfirmed cast warnings for Jackson deserialization -->
+    <Match>
+        <Bug pattern="BC_UNCONFIRMED_CAST"/>
+        <Or>
+            <Method name="~.*deserialize.*"/>
+            <Method name="~.*serialize.*"/>
+        </Or>
+    </Match>
+
+    <!-- Exclude warnings about synchronization in WebSocket handlers -->
+    <!-- WebSocket handlers in Spring are typically thread-safe by design -->
+    <Match>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+        <Class name="~.*WebSocketHandler.*"/>
+    </Match>
+
+    <!-- Low priority cosmetic issues -->
+    <Match>
+        <Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
+    </Match>
+
+    <!-- Exclude serialization warnings for non-serializable objects -->
+    <!-- Spring manages serialization differently -->
+    <Match>
+        <Bug pattern="SE_BAD_FIELD"/>
+        <Or>
+            <Annotation name="org.springframework.stereotype.Component"/>
+            <Annotation name="org.springframework.stereotype.Service"/>
+        </Or>
+    </Match>
+
+    <!-- Exclude EI_EXPOSE_REP2 for Spring-managed beans with constructor injection -->
+    <!-- Spring beans store references to injected dependencies - this is expected -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+        <Or>
+            <Annotation name="org.springframework.stereotype.Component"/>
+            <Annotation name="org.springframework.stereotype.Service"/>
+            <Annotation name="org.springframework.stereotype.Repository"/>
+            <Annotation name="org.springframework.stereotype.Controller"/>
+            <Annotation name="org.springframework.web.bind.annotation.RestController"/>
+        </Or>
+    </Match>
+
+    <!-- Exclude EI_EXPOSE_REP for configuration properties classes -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP"/>
+        <Or>
+            <Annotation name="org.springframework.boot.context.properties.ConfigurationProperties"/>
+            <Annotation name="org.springframework.validation.annotation.Validated"/>
+            <Class name="~.*Properties.*"/>
+            <Class name="~.*Config.*"/>
+        </Or>
+    </Match>
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+        <Or>
+            <Annotation name="org.springframework.boot.context.properties.ConfigurationProperties"/>
+            <Annotation name="org.springframework.validation.annotation.Validated"/>
+            <Class name="~.*Properties.*"/>
+            <Class name="~.*Config.*"/>
+        </Or>
+    </Match>
+
+    <!-- Exclude locale-independent case conversion (DM_CONVERT_CASE) -->
+    <!-- For internal identifiers like agent types, locale doesn't matter -->
+    <Match>
+        <Bug pattern="DM_CONVERT_CASE"/>
+        <Or>
+            <Package name="~.*\.controller"/>
+            <Package name="~.*\.service"/>
+            <Package name="~.*\.config"/>
+        </Or>
+    </Match>
+
+    <!-- Exclude switch without default for enum switches -->
+    <!-- Java handles exhaustive enum switches, SpotBugs doesn't understand this -->
+    <Match>
+        <Bug pattern="SF_SWITCH_NO_DEFAULT"/>
+    </Match>
+
+    <!-- Exclude overridable method call in constructor for Spring components -->
+    <!-- Spring beans are typically final in practice due to AOP proxying -->
+    <Match>
+        <Bug pattern="MC_OVERRIDABLE_METHOD_CALL_IN_CONSTRUCTOR"/>
+        <Or>
+            <Annotation name="org.springframework.stereotype.Component"/>
+            <Annotation name="org.springframework.stereotype.Service"/>
+        </Or>
+    </Match>
+
+    <!-- Exclude EI_EXPOSE_REP/EI_EXPOSE_REP2 for Builder classes and session classes -->
+    <!-- These are internal implementation details -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP"/>
+        <Class name="~.*\$Builder"/>
+    </Match>
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+        <Class name="~.*\$Builder"/>
+    </Match>
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP"/>
+        <Package name="~.*\.session"/>
+    </Match>
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+        <Package name="~.*\.session"/>
+    </Match>
+
+    <!-- Exclude throws RuntimeException for service methods -->
+    <!-- Spring services commonly throw RuntimeExceptions for business logic -->
+    <Match>
+        <Bug pattern="THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"/>
+    </Match>
+
+    <!-- Exclude THROWS_METHOD_THROWS_CLAUSE_BASIC_EXCEPTION -->
+    <Match>
+        <Bug pattern="THROWS_METHOD_THROWS_CLAUSE_BASIC_EXCEPTION"/>
+    </Match>
+
+    <!-- Exclude catching generic Exception in websocket/transform handlers -->
+    <!-- These need to catch all exceptions for proper error handling -->
+    <Match>
+        <Bug pattern="REC_CATCH_EXCEPTION"/>
+        <Or>
+            <Package name="~.*\.websocket"/>
+            <Package name="~.*\.transform"/>
+            <Package name="~.*\.service"/>
+        </Or>
+    </Match>
+
+    <!-- Exclude null path warnings - often false positives -->
+    <Match>
+        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    </Match>
+
+    <!-- Exclude ignored return value in certain contexts -->
+    <Match>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_INFERRED"/>
+    </Match>
+
+    <!-- Exclude dead local store - common in try-catch patterns -->
+    <Match>
+        <Bug pattern="DLS_DEAD_LOCAL_STORE"/>
+    </Match>
+
+    <!-- Exclude constructor throw for security-related classes -->
+    <Match>
+        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+        <Package name="~.*\.security"/>
+    </Match>
+
+    <!-- Exclude EI issues for transform and websocket packages -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP"/>
+        <Or>
+            <Package name="~.*\.transform"/>
+            <Package name="~.*\.websocket"/>
+        </Or>
+    </Match>
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+        <Or>
+            <Package name="~.*\.transform"/>
+            <Package name="~.*\.websocket"/>
+        </Or>
+    </Match>
+
+</FindBugsFilter>

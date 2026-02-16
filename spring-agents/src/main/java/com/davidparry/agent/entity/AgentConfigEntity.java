@@ -1,7 +1,21 @@
 package com.davidparry.agent.entity;
 
 import com.davidparry.agent.protocol.dto.AgentType;
-import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -12,107 +26,107 @@ import java.util.UUID;
 @Entity
 @Table(name = "agent_config")
 public class AgentConfigEntity {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-    
+
     @Column(name = "agent_type", nullable = false, unique = true)
     @Enumerated(EnumType.STRING)
     private AgentType agentType;
-    
+
     @Column(nullable = false, length = 100)
     private String name;
-    
+
     @Column(length = 500)
     private String description;
-    
+
     @Column(name = "system_prompt", nullable = false, columnDefinition = "CLOB")
     private String systemPrompt;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "model", nullable = false)
     private LlmModelEntity llmModel;
-    
+
     @Column(nullable = false)
     private boolean enabled = true;
-    
+
     @Column(nullable = false)
     private int version = 1;
-    
+
     @Column(columnDefinition = "CLOB")
     private String metadata;
-    
-    @OneToOne(mappedBy = "agentConfig", cascade = CascadeType.ALL, 
-              fetch = FetchType.LAZY, orphanRemoval = true)
-    private AgentExecutionConfigEntity executionConfig;
-    
+
+    @OneToMany(mappedBy = "agentConfig", cascade = CascadeType.ALL,
+               fetch = FetchType.LAZY, orphanRemoval = true)
+    private java.util.List<AgentExecutionConfigEntity> executionConfigs = new java.util.ArrayList<>();
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-    
+
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
-    
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }
-    
+
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
-    
+
     // Getters and setters
-    public UUID getId() { 
-        return id; 
+    public UUID getId() {
+        return id;
     }
-    
-    public void setId(UUID id) { 
-        this.id = id; 
+
+    public void setId(UUID id) {
+        this.id = id;
     }
-    
-    public AgentType getAgentType() { 
-        return agentType; 
+
+    public AgentType getAgentType() {
+        return agentType;
     }
-    
-    public void setAgentType(AgentType agentType) { 
-        this.agentType = agentType; 
+
+    public void setAgentType(AgentType agentType) {
+        this.agentType = agentType;
     }
-    
-    public String getName() { 
-        return name; 
+
+    public String getName() {
+        return name;
     }
-    
-    public void setName(String name) { 
-        this.name = name; 
+
+    public void setName(String name) {
+        this.name = name;
     }
-    
-    public String getDescription() { 
-        return description; 
+
+    public String getDescription() {
+        return description;
     }
-    
-    public void setDescription(String description) { 
-        this.description = description; 
+
+    public void setDescription(String description) {
+        this.description = description;
     }
-    
-    public String getSystemPrompt() { 
-        return systemPrompt; 
+
+    public String getSystemPrompt() {
+        return systemPrompt;
     }
-    
-    public void setSystemPrompt(String systemPrompt) { 
-        this.systemPrompt = systemPrompt; 
+
+    public void setSystemPrompt(String systemPrompt) {
+        this.systemPrompt = systemPrompt;
     }
-    
-    public LlmModelEntity getLlmModel() { 
-        return llmModel; 
+
+    public LlmModelEntity getLlmModel() {
+        return llmModel;
     }
-    
-    public void setLlmModel(LlmModelEntity llmModel) { 
-        this.llmModel = llmModel; 
+
+    public void setLlmModel(LlmModelEntity llmModel) {
+        this.llmModel = llmModel;
     }
-    
+
     /**
      * Convenience method for backward compatibility.
      * Returns the model identifier string.
@@ -120,44 +134,69 @@ public class AgentConfigEntity {
     public String getModel() {
         return llmModel != null ? llmModel.getModel() : null;
     }
-    
-    public boolean isEnabled() { 
-        return enabled; 
+
+    public boolean isEnabled() {
+        return enabled;
     }
-    
-    public void setEnabled(boolean enabled) { 
-        this.enabled = enabled; 
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
     }
-    
-    public int getVersion() { 
-        return version; 
+
+    public int getVersion() {
+        return version;
     }
-    
-    public void setVersion(int version) { 
-        this.version = version; 
+
+    public void setVersion(int version) {
+        this.version = version;
     }
-    
-    public String getMetadata() { 
-        return metadata; 
+
+    public String getMetadata() {
+        return metadata;
     }
-    
-    public void setMetadata(String metadata) { 
-        this.metadata = metadata; 
+
+    public void setMetadata(String metadata) {
+        this.metadata = metadata;
     }
-    
-    public AgentExecutionConfigEntity getExecutionConfig() { 
-        return executionConfig; 
+
+    public java.util.List<AgentExecutionConfigEntity> getExecutionConfigs() {
+        return executionConfigs;
     }
-    
-    public void setExecutionConfig(AgentExecutionConfigEntity executionConfig) { 
-        this.executionConfig = executionConfig; 
+
+    public void setExecutionConfigs(java.util.List<AgentExecutionConfigEntity> executionConfigs) {
+        this.executionConfigs = executionConfigs;
     }
-    
-    public LocalDateTime getCreatedAt() { 
-        return createdAt; 
+
+    /**
+     * Gets the default execution config (where customer is null).
+     * Returns null if no default config exists.
+     */
+    public AgentExecutionConfigEntity getDefaultExecutionConfig() {
+        return executionConfigs.stream()
+            .filter(AgentExecutionConfigEntity::isDefaultConfig)
+            .findFirst()
+            .orElse(null);
     }
-    
-    public LocalDateTime getUpdatedAt() { 
-        return updatedAt; 
+
+    /**
+     * Gets the execution config for a specific customer.
+     * Falls back to default config if no customer-specific config exists.
+     */
+    public AgentExecutionConfigEntity getExecutionConfigForCustomer(CustomerEntity customer) {
+        if (customer == null) {
+            return getDefaultExecutionConfig();
+        }
+        return executionConfigs.stream()
+            .filter(ec -> customer.equals(ec.getCustomer()))
+            .findFirst()
+            .orElseGet(this::getDefaultExecutionConfig);
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
     }
 }

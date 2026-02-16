@@ -1,7 +1,9 @@
 package com.davidparry.agent.service;
 
 import com.davidparry.agent.entity.SecurityAuditLogEntity;
-import com.davidparry.agent.entity.SecurityAuditLogEntity.*;
+import com.davidparry.agent.entity.SecurityAuditLogEntity.ActorType;
+import com.davidparry.agent.entity.SecurityAuditLogEntity.EventCategory;
+import com.davidparry.agent.entity.SecurityAuditLogEntity.EventType;
 import com.davidparry.agent.repository.SecurityAuditLogRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,15 +20,15 @@ import java.util.UUID;
  */
 @Service
 public class SecurityAuditService {
-    
-    private static final Logger logger = LoggerFactory.getLogger(SecurityAuditService.class);
-    
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SecurityAuditService.class);
+
     private final SecurityAuditLogRepository auditRepository;
-    
+
     public SecurityAuditService(SecurityAuditLogRepository auditRepository) {
         this.auditRepository = auditRepository;
     }
-    
+
     /**
      * Records a token creation event.
      */
@@ -43,17 +45,17 @@ public class SecurityAuditService {
             .actorType(ActorType.SYSTEM)
             .actorId(actorId)
             .build();
-        
+
         auditRepository.save(log);
-        logger.debug("Audit: TOKEN_CREATED for customer {} with secret {}", customerId, secretVersion);
+        LOGGER.debug("Audit: TOKEN_CREATED for customer {} with secret {}", customerId, secretVersion);
     }
-    
+
     /**
      * Records a token revocation event.
      */
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void logTokenRevoked(UUID customerId, UUID tokenId, String secretVersion, 
+    public void logTokenRevoked(UUID customerId, UUID tokenId, String secretVersion,
                                 ActorType actorType, String actorId, String reason) {
         SecurityAuditLogEntity log = SecurityAuditLogEntity.builder()
             .eventType(EventType.TOKEN_REVOKED)
@@ -65,11 +67,11 @@ public class SecurityAuditService {
             .actorType(actorType)
             .actorId(actorId)
             .build();
-        
+
         auditRepository.save(log);
-        logger.debug("Audit: TOKEN_REVOKED for customer {}", customerId);
+        LOGGER.debug("Audit: TOKEN_REVOKED for customer {}", customerId);
     }
-    
+
     /**
      * Records a successful token validation.
      */
@@ -84,10 +86,10 @@ public class SecurityAuditService {
             .description("Token validated successfully using secret version " + secretVersion)
             .actorType(ActorType.SYSTEM)
             .build();
-        
+
         auditRepository.save(log);
     }
-    
+
     /**
      * Records a failed token validation attempt.
      */
@@ -100,19 +102,19 @@ public class SecurityAuditService {
             .description("Token validation failed: " + reason)
             .actorType(ActorType.SYSTEM)
             .build();
-        
+
         auditRepository.save(log);
     }
-    
+
     /**
      * Records when a new secret version is configured (called at startup).
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void logSecretVersionConfigured(String secretVersion, boolean isCurrent) {
-        String description = isCurrent 
+        String description = isCurrent
             ? "Secret version " + secretVersion + " configured as CURRENT"
             : "Secret version " + secretVersion + " configured (legacy/rotation)";
-        
+
         SecurityAuditLogEntity log = SecurityAuditLogEntity.builder()
             .eventType(EventType.SECRET_VERSION_CONFIGURED)
             .eventCategory(EventCategory.SECRET)
@@ -121,23 +123,23 @@ public class SecurityAuditService {
             .actorType(ActorType.SYSTEM)
             .actorId("application-startup")
             .build();
-        
+
         auditRepository.save(log);
-        logger.info("Audit: SECRET_VERSION_CONFIGURED - {}", description);
+        LOGGER.info("Audit: SECRET_VERSION_CONFIGURED - {}", description);
     }
-    
+
     /**
      * Records a low token warning notification.
      */
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void logLowTokenWarning(UUID customerId, String model, Long remainingTokens, 
+    public void logLowTokenWarning(UUID customerId, String model, Long remainingTokens,
                                     Long threshold, String metadata) {
         String description = String.format(
             "Low token warning: %d tokens remaining on model %s (threshold: %d)",
             remainingTokens, model, threshold
         );
-        
+
         SecurityAuditLogEntity log = SecurityAuditLogEntity.builder()
             .eventType(EventType.LOW_TOKEN_WARNING)
             .eventCategory(EventCategory.NOTIFICATION)
@@ -147,11 +149,11 @@ public class SecurityAuditService {
             .actorType(ActorType.SYSTEM)
             .actorId("notification-service")
             .build();
-        
+
         auditRepository.save(log);
-        logger.debug("Audit: LOW_TOKEN_WARNING for customer {} on model {}", customerId, model);
+        LOGGER.debug("Audit: LOW_TOKEN_WARNING for customer {} on model {}", customerId, model);
     }
-    
+
     /**
      * Records a usage limit exceeded event.
      */
@@ -162,7 +164,7 @@ public class SecurityAuditService {
             "Token limit exceeded on model %s: used %d of %d tokens",
             model, tokensUsed, tokenLimit
         );
-        
+
         SecurityAuditLogEntity log = SecurityAuditLogEntity.builder()
             .eventType(EventType.LIMIT_EXCEEDED)
             .eventCategory(EventCategory.USAGE)
@@ -170,13 +172,13 @@ public class SecurityAuditService {
             .description(description)
             .actorType(ActorType.SYSTEM)
             .build();
-        
+
         auditRepository.save(log);
-        logger.debug("Audit: LIMIT_EXCEEDED for customer {} on model {}", customerId, model);
+        LOGGER.debug("Audit: LIMIT_EXCEEDED for customer {} on model {}", customerId, model);
     }
-    
+
     // ==================== Admin Action Audit Methods ====================
-    
+
     /**
      * Records a generic admin action.
      */
@@ -191,11 +193,11 @@ public class SecurityAuditService {
             .actorType(ActorType.ADMIN)
             .actorId("admin-api")
             .build();
-        
+
         auditRepository.save(log);
-        logger.info("Audit: {} - {}", eventType, description);
+        LOGGER.info("Audit: {} - {}", eventType, description);
     }
-    
+
     /**
      * Records an admin action affecting a customer.
      */
@@ -210,11 +212,11 @@ public class SecurityAuditService {
             .actorType(ActorType.ADMIN)
             .actorId("admin-api")
             .build();
-        
+
         auditRepository.save(log);
-        logger.info("Audit: {} for customer {} - {}", eventType, customerId, description);
+        LOGGER.info("Audit: {} for customer {} - {}", eventType, customerId, description);
     }
-    
+
     /**
      * Records an admin action affecting a model.
      */
@@ -229,8 +231,8 @@ public class SecurityAuditService {
             .actorType(ActorType.ADMIN)
             .actorId("admin-api")
             .build();
-        
+
         auditRepository.save(log);
-        logger.info("Audit: {} for model {} - {}", eventType, model, description);
+        LOGGER.info("Audit: {} for model {} - {}", eventType, model, description);
     }
 }

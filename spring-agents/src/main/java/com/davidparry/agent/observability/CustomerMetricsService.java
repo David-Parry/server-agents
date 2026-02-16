@@ -9,13 +9,18 @@ import com.davidparry.agent.repository.CustomerRepository;
 import com.davidparry.agent.session.ClientConnection;
 import com.davidparry.agent.session.ConnectionManager;
 import com.davidparry.agent.session.PromptSession;
-import com.davidparry.agent.session.SessionState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
@@ -24,7 +29,7 @@ import java.util.stream.Collectors;
 /**
  * Service for collecting and aggregating per-customer metrics.
  * Maintains historical counters that persist across connection lifecycles.
- * 
+ *
  * This service provides:
  * - Real-time metrics from active connections
  * - Historical counters that survive connection disconnects
@@ -33,7 +38,7 @@ import java.util.stream.Collectors;
 @Service
 public class CustomerMetricsService {
 
-    private static final Logger logger = LoggerFactory.getLogger(CustomerMetricsService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CustomerMetricsService.class);
 
     private final ConnectionManager connectionManager;
     private final CustomerRepository customerRepository;
@@ -52,13 +57,13 @@ public class CustomerMetricsService {
         this.customerRepository = customerRepository;
         this.allowanceRepository = allowanceRepository;
         this.circuitBreaker = circuitBreaker;
-        
-        logger.info("CustomerMetricsService initialized");
+
+        LOGGER.info("CustomerMetricsService initialized");
     }
 
     /**
      * Gets metrics snapshot for all connected customers.
-     * 
+     *
      * @return list of metrics snapshots for all customers with active connections
      */
     public List<CustomerMetricsSnapshot> getConnectedCustomerMetrics() {
@@ -74,7 +79,7 @@ public class CustomerMetricsService {
     /**
      * Gets metrics snapshot for all customers with historical data.
      * Includes customers who have disconnected but have historical metrics.
-     * 
+     *
      * @return list of metrics snapshots for all customers with any metrics
      */
     public List<CustomerMetricsSnapshot> getAllCustomerMetrics() {
@@ -91,7 +96,7 @@ public class CustomerMetricsService {
 
     /**
      * Gets metrics snapshot for a specific customer.
-     * 
+     *
      * @param customerId the customer's UUID string
      * @return optional containing the metrics snapshot if customer exists
      */
@@ -101,7 +106,7 @@ public class CustomerMetricsService {
         try {
             customerOpt = customerRepository.findByCustomerId(UUID.fromString(customerId));
         } catch (IllegalArgumentException e) {
-            logger.warn("Invalid customer ID format: {}", customerId);
+            LOGGER.warn("Invalid customer ID format: {}", customerId);
             return Optional.empty();
         }
 
@@ -125,7 +130,9 @@ public class CustomerMetricsService {
         int sessionCount = 0;
 
         for (ClientConnection conn : connections) {
-            if (!conn.isActive()) continue;
+            if (!conn.isActive()) {
+                continue;
+            }
 
             activeConnections++;
 
@@ -155,7 +162,10 @@ public class CustomerMetricsService {
         Map<String, ToolCallCircuitBreaker.CircuitBreakerMetrics> cbMetrics =
                 circuitBreaker.getAllMetrics();
 
-        int cbTotal = 0, cbOpen = 0, cbClosed = 0, cbHalfOpen = 0;
+        int cbTotal = 0;
+        int cbOpen = 0;
+        int cbClosed = 0;
+        int cbHalfOpen = 0;
         for (Map.Entry<String, ToolCallCircuitBreaker.CircuitBreakerMetrics> entry : cbMetrics.entrySet()) {
             // Circuit breaker keys are "connectionId:toolName"
             String connId = entry.getKey().split(":")[0];
@@ -167,6 +177,7 @@ public class CustomerMetricsService {
                         case "OPEN" -> cbOpen++;
                         case "CLOSED" -> cbClosed++;
                         case "HALF_OPEN" -> cbHalfOpen++;
+                        default -> { }
                     }
                     break;
                 }
@@ -186,7 +197,7 @@ public class CustomerMetricsService {
                 }
             }
         } catch (Exception e) {
-            logger.debug("Could not fetch token usage for customer {}: {}", customerId, e.getMessage());
+            LOGGER.debug("Could not fetch token usage for customer {}: {}", customerId, e.getMessage());
         }
 
         double avgSessionDurationMs = sessionCount > 0 ? totalDurationMs / sessionCount : 0;
@@ -231,7 +242,7 @@ public class CustomerMetricsService {
      */
     public void recordConnectionOpened(String customerId) {
         getOrCreateHistorical(customerId).connectionsOpened.increment();
-        logger.trace("Recorded connection opened for customer {}", customerId);
+        LOGGER.trace("Recorded connection opened for customer {}", customerId);
     }
 
     /**
@@ -239,7 +250,7 @@ public class CustomerMetricsService {
      */
     public void recordConnectionClosed(String customerId) {
         getOrCreateHistorical(customerId).connectionsClosed.increment();
-        logger.trace("Recorded connection closed for customer {}", customerId);
+        LOGGER.trace("Recorded connection closed for customer {}", customerId);
     }
 
     /**
@@ -247,12 +258,12 @@ public class CustomerMetricsService {
      */
     public void recordSessionCreated(String customerId) {
         getOrCreateHistorical(customerId).sessionsCreated.increment();
-        logger.trace("Recorded session created for customer {}", customerId);
+        LOGGER.trace("Recorded session created for customer {}", customerId);
     }
 
     /**
      * Records a session completed event for a customer.
-     * 
+     *
      * @param customerId the customer ID
      * @param durationMs the session duration in milliseconds
      */
@@ -260,7 +271,7 @@ public class CustomerMetricsService {
         CustomerHistoricalMetrics h = getOrCreateHistorical(customerId);
         h.sessionsCompleted.increment();
         h.recordSessionDuration(durationMs);
-        logger.trace("Recorded session completed for customer {} ({}ms)", customerId, durationMs);
+        LOGGER.trace("Recorded session completed for customer {} ({}ms)", customerId, durationMs);
     }
 
     /**
@@ -268,7 +279,7 @@ public class CustomerMetricsService {
      */
     public void recordSessionFailed(String customerId) {
         getOrCreateHistorical(customerId).sessionsFailed.increment();
-        logger.trace("Recorded session failed for customer {}", customerId);
+        LOGGER.trace("Recorded session failed for customer {}", customerId);
     }
 
     /**
@@ -276,7 +287,7 @@ public class CustomerMetricsService {
      */
     public void recordSessionCancelled(String customerId) {
         getOrCreateHistorical(customerId).sessionsCancelled.increment();
-        logger.trace("Recorded session cancelled for customer {}", customerId);
+        LOGGER.trace("Recorded session cancelled for customer {}", customerId);
     }
 
     /**
@@ -284,12 +295,12 @@ public class CustomerMetricsService {
      */
     public void recordSessionTimedOut(String customerId) {
         getOrCreateHistorical(customerId).sessionsTimedOut.increment();
-        logger.trace("Recorded session timed out for customer {}", customerId);
+        LOGGER.trace("Recorded session timed out for customer {}", customerId);
     }
 
     /**
      * Records a tool call event for a customer.
-     * 
+     *
      * @param customerId the customer ID
      * @param durationMs the tool call duration in milliseconds
      * @param success whether the tool call succeeded
@@ -301,7 +312,7 @@ public class CustomerMetricsService {
             h.toolCallsFailed.increment();
         }
         h.recordToolCallDuration(durationMs);
-        logger.trace("Recorded tool call for customer {} ({}ms, success={})", customerId, durationMs, success);
+        LOGGER.trace("Recorded tool call for customer {} ({}ms, success={})", customerId, durationMs, success);
     }
 
     /**
@@ -317,7 +328,7 @@ public class CustomerMetricsService {
      */
     public void clearHistoricalMetrics(String customerId) {
         historicalMetrics.remove(customerId);
-        logger.info("Cleared historical metrics for customer {}", customerId);
+        LOGGER.info("Cleared historical metrics for customer {}", customerId);
     }
 
     /**
@@ -333,7 +344,7 @@ public class CustomerMetricsService {
      * Historical metrics that persist across connection lifecycles.
      * Uses LongAdder for high-concurrency counter updates.
      */
-    private static class CustomerHistoricalMetrics {
+    private static final class CustomerHistoricalMetrics {
         final LongAdder connectionsOpened = new LongAdder();
         final LongAdder connectionsClosed = new LongAdder();
         final LongAdder sessionsCreated = new LongAdder();

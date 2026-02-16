@@ -8,7 +8,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.github.victools.jsonschema.generator.*;
+import com.github.victools.jsonschema.generator.Option;
+import com.github.victools.jsonschema.generator.OptionPreset;
+import com.github.victools.jsonschema.generator.SchemaGenerator;
+import com.github.victools.jsonschema.generator.SchemaGeneratorConfig;
+import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder;
+import com.github.victools.jsonschema.generator.SchemaVersion;
 import com.github.victools.jsonschema.module.jackson.JacksonModule;
 import com.github.victools.jsonschema.module.jackson.JacksonOption;
 import org.springframework.stereotype.Component;
@@ -166,11 +171,11 @@ public class SchemaMerger {
                                 "type": "array",
                                 "items": {
                                     "type": "string",
-                                    "description": "A single question it **must** also have the time estimate it would take a human developer to come up with this question"
+                                    "description": "A question with time estimate a developer would need"
                                 }
                             },
                             "design": {
-                                "description": "The complete design document that has been added as a Jira comment and is also included here for other agents to use",
+                                "description": "Complete design document added as Jira comment, available for other agents",
                                 "type": "string"
                             },
                             "reason": {

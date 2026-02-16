@@ -19,7 +19,7 @@ import java.util.List;
 
 /**
  * OpenAPI/Swagger configuration for the Spring Agents API.
- * 
+ *
  * Access the Swagger UI at: /swagger-ui.html
  * Access the OpenAPI spec at: /v3/api-docs
  */
@@ -76,22 +76,22 @@ public class OpenApiConfig {
             .title("Spring Agents API")
             .description("""
                 REST API for the Spring Agents MCP Proxy service.
-                
+
                 ## Authentication
-                
+
                 ### Admin API (`/api/admin/**`)
                 Admin endpoints require a Bearer token in the Authorization header:
                 ```
                 Authorization: Bearer <admin-token>
                 ```
                 The admin token is configured via the `AGENT_ADMIN_API_TOKEN` environment variable.
-                
+
                 ### Customer API (`/api/customers/**`, `/api/models/**`)
                 Customer endpoints are currently open but may require authentication in production.
-                
+
                 ### WebSocket API (`/agent`)
                 WebSocket connections require a customer JWT token via the `X-API-Key` header or `apiKey` query parameter.
-                
+
                 ## Rate Limiting
                 REST endpoints have no rate limiting. Token usage limits are enforced per-customer per-model.
                 """)
@@ -109,8 +109,8 @@ public class OpenApiConfig {
             .type(SecurityScheme.Type.HTTP)
             .scheme("bearer")
             .bearerFormat("token")
-            .description("Admin API token for administrative operations. " +
-                        "Set via AGENT_ADMIN_API_TOKEN environment variable.");
+            .description("Admin API token for administrative operations. "
+                        + "Set via AGENT_ADMIN_API_TOKEN environment variable.");
     }
 
     private SecurityScheme customerApiKeyScheme() {

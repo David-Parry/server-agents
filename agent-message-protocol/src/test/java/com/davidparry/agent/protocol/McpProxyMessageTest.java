@@ -1260,8 +1260,9 @@ class McpProxyMessageTest {
 
     @Test
     void testErrorCodeValues() {
-        assertEquals(14, ErrorCode.values().length);
+        assertEquals(15, ErrorCode.values().length);
         assertNotNull(ErrorCode.valueOf("AUTHENTICATION_FAILED"));
+        assertNotNull(ErrorCode.valueOf("UNAUTHORIZED"));
         assertNotNull(ErrorCode.valueOf("RATE_LIMITED"));
         assertNotNull(ErrorCode.valueOf("CONNECTION_LIMIT_EXCEEDED"));
         assertNotNull(ErrorCode.valueOf("SESSION_NOT_FOUND"));

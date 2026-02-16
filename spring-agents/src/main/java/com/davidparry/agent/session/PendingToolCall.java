@@ -5,7 +5,7 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Represents a pending tool call waiting for a response from the remote client.
- * 
+ *
  * <p>This record is immutable in terms of its field references. The {@link CompletableFuture}
  * is created at construction time and its completion state is managed internally by the future.
  *
@@ -75,12 +75,12 @@ public record PendingToolCall(
 
     @Override
     public String toString() {
-        return "PendingToolCall{" +
-                "requestId='" + requestId + '\'' +
-                ", toolName='" + toolName + '\'' +
-                ", createdAt=" + createdAt +
-                ", deadline=" + deadline +
-                ", pending=" + isPending() +
-                '}';
+        return "PendingToolCall{"
+                + "requestId='" + requestId + '\''
+                + ", toolName='" + toolName + '\''
+                + ", createdAt=" + createdAt
+                + ", deadline=" + deadline
+                + ", pending=" + isPending()
+                + '}';
     }
 }

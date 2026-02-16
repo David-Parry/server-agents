@@ -14,7 +14,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @EnableAsync
 @EnableConfigurationProperties({McpProxyProperties.class, TokenHashingProperties.class, JwtProperties.class, AdminProperties.class})
-public class Application {
+public final class Application {
+
+    private Application() {
+        // Spring Boot application entry point
+    }
+
     public static void main(String[] args) {
         SpringApplication.run(Application.class, args);
     }

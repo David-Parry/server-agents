@@ -1,6 +1,11 @@
 package com.davidparry.agent.observability;
 
-import com.davidparry.agent.repository.*;
+import com.davidparry.agent.repository.CustomerModelAllowanceRepository;
+import com.davidparry.agent.repository.CustomerRepository;
+import com.davidparry.agent.repository.CustomerTokenRepository;
+import com.davidparry.agent.repository.LlmModelRepository;
+import com.davidparry.agent.repository.PolicyTypeRepository;
+import com.davidparry.agent.repository.SecurityAuditLogRepository;
 import com.davidparry.agent.session.ClientConnection;
 import com.davidparry.agent.session.ConnectionManager;
 import io.micrometer.core.instrument.Gauge;
@@ -16,7 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Prometheus metrics service for comprehensive application observability.
  * Exposes business and operational metrics via Micrometer/Prometheus.
- * 
+ *
  * Metrics are divided into two categories:
  * 1. Real-time metrics - Updated on every scrape (connection counts, session counts)
  * 2. Cached metrics - Updated periodically via scheduler (database counts)
@@ -24,7 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Component
 public class PrometheusMetricsService implements MeterBinder {
 
-    private static final Logger logger = LoggerFactory.getLogger(PrometheusMetricsService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(PrometheusMetricsService.class);
 
     private final CustomerRepository customerRepository;
     private final CustomerTokenRepository tokenRepository;
@@ -131,7 +136,7 @@ public class PrometheusMetricsService implements MeterBinder {
                 .register(registry);
 
         // Total sessions created across all active connections
-        Gauge.builder("spring_agents_websocket_sessions_created_total", connectionManager, 
+        Gauge.builder("spring_agents_websocket_sessions_created_total", connectionManager,
                 cm -> cm.getAllConnections().stream()
                         .mapToLong(ClientConnection::getTotalSessionsCreated)
                         .sum())
@@ -146,7 +151,7 @@ public class PrometheusMetricsService implements MeterBinder {
                 .description("Total tool calls executed across all active connections")
                 .register(registry);
 
-        logger.info("Prometheus metrics registered successfully");
+        LOGGER.info("Prometheus metrics registered successfully");
     }
 
     /**
@@ -178,10 +183,10 @@ public class PrometheusMetricsService implements MeterBinder {
             // Audit metrics
             totalAuditLogs.set(auditLogRepository.count());
 
-            logger.trace("Prometheus metrics refreshed: customers={}, tokens={}, connections={}", 
+            LOGGER.trace("Prometheus metrics refreshed: customers={}, tokens={}, connections={}",
                     totalCustomers.get(), activeTokens.get(), connectionManager.getConnectionCount());
         } catch (Exception e) {
-            logger.error("Failed to refresh Prometheus metrics", e);
+            LOGGER.error("Failed to refresh Prometheus metrics", e);
         }
     }
 

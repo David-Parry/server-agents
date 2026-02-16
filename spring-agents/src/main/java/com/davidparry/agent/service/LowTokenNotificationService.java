@@ -21,7 +21,6 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
@@ -31,23 +30,23 @@ import java.util.function.Consumer;
  * - Webhook (HTTP POST)
  * - Email (placeholder for future implementation)
  * - Audit log
- * 
+ *
  * Notifications are sent only once per reset period to avoid spamming.
  */
 @Service
 public class LowTokenNotificationService {
-    
-    private static final Logger logger = LoggerFactory.getLogger(LowTokenNotificationService.class);
-    
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(LowTokenNotificationService.class);
+
     private final CustomerModelAllowanceRepository allowanceRepository;
     private final SecurityAuditService auditService;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
-    
+
     private final Counter notificationsSentCounter;
     private final Counter webhookSuccessCounter;
     private final Counter webhookFailureCounter;
-    
+
     public LowTokenNotificationService(
             CustomerModelAllowanceRepository allowanceRepository,
             SecurityAuditService auditService,
@@ -59,7 +58,7 @@ public class LowTokenNotificationService {
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
-        
+
         this.notificationsSentCounter = Counter.builder("customer_token_allowance_low_notifications_total")
             .description("Total low token allowance notifications sent to customers")
             .register(meterRegistry);
@@ -70,11 +69,11 @@ public class LowTokenNotificationService {
             .description("Failed webhook notifications for low token allowance warnings")
             .register(meterRegistry);
     }
-    
+
     /**
      * Checks if a notification should be sent and triggers all configured channels.
      * This method should be called after recording token usage.
-     * 
+     *
      * @param allowance The allowance to check
      * @param webSocketNotifier Optional callback to send notification via WebSocket
      * @return true if a notification was sent
@@ -83,29 +82,29 @@ public class LowTokenNotificationService {
     public boolean checkAndNotify(
             CustomerModelAllowanceEntity allowance,
             Consumer<LowTokenNotificationEvent> webSocketNotifier) {
-        
+
         if (!allowance.shouldSendNotification()) {
             return false;
         }
-        
+
         CustomerEntity customer = allowance.getCustomer();
         LowTokenNotificationEvent event = createNotificationEvent(allowance);
-        
-        logger.info("Sending low token notification for customer {} on model {}: {} tokens remaining",
-                   customer.getCustomerId(), allowance.getLlmModel().getModel(), 
+
+        LOGGER.info("Sending low token notification for customer {} on model {}: {} tokens remaining",
+                   customer.getCustomerId(), allowance.getLlmModel().getModel(),
                    allowance.getRemainingTokens());
-        
+
         // Mark notification as sent BEFORE sending to prevent duplicates
         allowance.markNotificationSent();
         allowanceRepository.save(allowance);
-        
+
         // Send via all configured channels
         sendNotifications(customer, event, webSocketNotifier);
-        
+
         notificationsSentCounter.increment();
         return true;
     }
-    
+
     /**
      * Sends notifications via all configured channels.
      */
@@ -113,31 +112,31 @@ public class LowTokenNotificationService {
             CustomerEntity customer,
             LowTokenNotificationEvent event,
             Consumer<LowTokenNotificationEvent> webSocketNotifier) {
-        
+
         // 1. WebSocket notification (synchronous, immediate feedback to client)
         if (webSocketNotifier != null) {
             try {
                 webSocketNotifier.accept(event);
-                logger.debug("Sent WebSocket notification for customer {}", customer.getCustomerId());
+                LOGGER.debug("Sent WebSocket notification for customer {}", customer.getCustomerId());
             } catch (Exception e) {
-                logger.warn("Failed to send WebSocket notification: {}", e.getMessage());
+                LOGGER.warn("Failed to send WebSocket notification: {}", e.getMessage());
             }
         }
-        
+
         // 2. Webhook notification (async)
         if (customer.getNotificationWebhookUrl() != null && !customer.getNotificationWebhookUrl().isBlank()) {
             sendWebhookNotificationAsync(customer.getNotificationWebhookUrl(), event);
         }
-        
+
         // 3. Email notification (async, placeholder)
         if (customer.getNotificationEmail() != null && !customer.getNotificationEmail().isBlank()) {
             sendEmailNotificationAsync(customer.getNotificationEmail(), event);
         }
-        
+
         // 4. Audit log (always)
         logNotificationToAudit(event);
     }
-    
+
     /**
      * Sends a webhook notification asynchronously.
      */
@@ -145,7 +144,7 @@ public class LowTokenNotificationService {
     public void sendWebhookNotificationAsync(String webhookUrl, LowTokenNotificationEvent event) {
         try {
             String jsonPayload = objectMapper.writeValueAsString(event);
-            
+
             HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(webhookUrl))
                 .header("Content-Type", "application/json")
@@ -153,25 +152,25 @@ public class LowTokenNotificationService {
                 .timeout(Duration.ofSeconds(30))
                 .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
                 .build();
-            
+
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            
+
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                logger.info("Webhook notification sent successfully to {} for customer {}",
+                LOGGER.info("Webhook notification sent successfully to {} for customer {}",
                            webhookUrl, event.customerId());
                 webhookSuccessCounter.increment();
             } else {
-                logger.warn("Webhook notification failed with status {} for customer {}: {}",
+                LOGGER.warn("Webhook notification failed with status {} for customer {}: {}",
                            response.statusCode(), event.customerId(), response.body());
                 webhookFailureCounter.increment();
             }
         } catch (Exception e) {
-            logger.error("Failed to send webhook notification to {} for customer {}: {}",
+            LOGGER.error("Failed to send webhook notification to {} for customer {}: {}",
                         webhookUrl, event.customerId(), e.getMessage());
             webhookFailureCounter.increment();
         }
     }
-    
+
     /**
      * Sends an email notification asynchronously.
      * This is a placeholder - actual email sending would require SMTP configuration.
@@ -179,16 +178,16 @@ public class LowTokenNotificationService {
     @Async
     public void sendEmailNotificationAsync(String email, LowTokenNotificationEvent event) {
         // TODO: Implement actual email sending when SMTP is configured
-        logger.info("Email notification would be sent to {} for customer {}: {}",
+        LOGGER.info("Email notification would be sent to {} for customer {}: {}",
                    email, event.customerId(), event.getMessage());
-        
+
         // For now, just log the event
         // In a real implementation, you would:
         // 1. Use JavaMailSender or a third-party email service
         // 2. Format the email with a proper template
         // 3. Handle failures and retries
     }
-    
+
     /**
      * Logs the notification event to the security audit log.
      */
@@ -203,10 +202,10 @@ public class LowTokenNotificationService {
                 metadata
             );
         } catch (Exception e) {
-            logger.warn("Failed to log notification to audit: {}", e.getMessage());
+            LOGGER.warn("Failed to log notification to audit: {}", e.getMessage());
         }
     }
-    
+
     /**
      * Creates a notification event from an allowance entity.
      */
@@ -214,7 +213,7 @@ public class LowTokenNotificationService {
         CustomerEntity customer = allowance.getCustomer();
         PolicyTypeEntity policy = allowance.getPolicyType();
         Integer daysUntilReset = calculateDaysUntilReset(allowance, policy);
-        
+
         return LowTokenNotificationEvent.from(
             customer.getCustomerId(),
             customer.getName(),
@@ -227,22 +226,22 @@ public class LowTokenNotificationService {
             policy != null ? policy.getName() : null
         );
     }
-    
+
     private Integer calculateDaysUntilReset(CustomerModelAllowanceEntity allowance, PolicyTypeEntity policy) {
         if (policy == null || policy.isUnlimited()) {
             return null;
         }
-        
+
         Integer resetDays = policy.getResetDays();
         if (resetDays == null || allowance.getTokensResetAt() == null) {
             return null;
         }
-        
+
         LocalDateTime nextReset = allowance.getTokensResetAt().plusDays(resetDays);
         long daysUntil = ChronoUnit.DAYS.between(LocalDateTime.now(), nextReset);
         return Math.max(0, (int) daysUntil);
     }
-    
+
     /**
      * Creates a notification event for a given allowance (for manual triggering or testing).
      */

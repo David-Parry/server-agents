@@ -1,13 +1,13 @@
 # Spring Agents - MCP Proxy WebSocket Hub
 
-A Spring Boot server that acts as a central hub for the Model Context Protocol (MCP) Proxy architecture. It accepts WebSocket connections from remote agent-clients, authenticates them using API keys, and routes tool calls between LLM providers (Anthropic, Ollama) and remote clients.
+A Spring Boot server that acts as a central hub for the Model Context Protocol (MCP) Proxy architecture. It accepts WebSocket connections from remote agent-sdk instances, authenticates them using API keys, and routes tool calls between LLM providers (Anthropic, Ollama) and remote clients.
 
 ## Features
 
 - **WebSocket Server** - Accepts connections at `/agent` endpoint
 - **API Key Authentication** - Secure client authentication with rate limiting
 - **Multiple LLM Providers** - Supports Anthropic (Claude) and Ollama models
-- **Remote Tool Execution** - Proxies tool calls to connected agent-clients
+- **Remote Tool Execution** - Proxies tool calls to connected agent-sdk instances
 - **Streaming Support** - Real-time streaming responses
 - **Session Management** - Multiple concurrent sessions per connection
 - **Circuit Breakers** - Reliability patterns for fault tolerance
@@ -618,6 +618,3 @@ curl http://localhost:8080/actuator/metrics/mcp.connections.active
 
 This architecture allows the LLM to use tools that run on the client's machine, enabling secure access to local resources without exposing them to the server.
 
-## License
-
-[Your License Here]

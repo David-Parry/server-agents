@@ -1,6 +1,20 @@
 package com.davidparry.agent.controller;
 
-import com.davidparry.agent.dto.*;
+import com.davidparry.agent.dto.BulkPolicyTypeRequest;
+import com.davidparry.agent.dto.BulkSetAllowanceRequest;
+import com.davidparry.agent.dto.CreateCustomerRequest;
+import com.davidparry.agent.dto.CustomerCreatedResponse;
+import com.davidparry.agent.dto.CustomerResponse;
+import com.davidparry.agent.dto.GenerateTokenRequest;
+import com.davidparry.agent.dto.ModelAllowanceResponse;
+import com.davidparry.agent.dto.PolicyTypeResponse;
+import com.davidparry.agent.dto.SetAllowanceRequest;
+import com.davidparry.agent.dto.TokenGeneratedResponse;
+import com.davidparry.agent.dto.TokensRevokedResponse;
+import com.davidparry.agent.dto.UpdateAllowanceNotificationThresholdRequest;
+import com.davidparry.agent.dto.UpdateNotificationSettingsRequest;
+import com.davidparry.agent.dto.UpdatePolicyRequest;
+import com.davidparry.agent.dto.UpdateStatusRequest;
 import com.davidparry.agent.entity.CustomerEntity;
 import com.davidparry.agent.entity.CustomerModelAllowanceEntity;
 import com.davidparry.agent.entity.PolicyTypeEntity;
@@ -18,7 +32,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -37,7 +59,7 @@ import java.util.UUID;
 @Tag(name = "Customers", description = "Customer management and token operations")
 public class CustomerController {
 
-    private static final Logger logger = LoggerFactory.getLogger(CustomerController.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CustomerController.class);
 
     private final CustomerTokenService customerTokenService;
     private final CustomerUsageService customerUsageService;
@@ -60,7 +82,8 @@ public class CustomerController {
 
     @Operation(
         summary = "Create a new customer",
-        description = "Creates a new customer with a generated JWT API token. Links all enabled models with specified default allowance and policy type."
+        description = "Creates a new customer with a generated JWT API token. "
+                + "Links all enabled models with specified default allowance and policy type."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Customer successfully created"),
@@ -84,24 +107,24 @@ public class CustomerController {
 
         // Generate a new customer ID first (needed for JWT claim)
         UUID customerId = UUID.randomUUID();
-        
+
         // Generate a JWT token with the customerId as a claim
         String apiToken = jwtTokenService.generateToken(customerId, request.name());
 
         boolean unlimited = Boolean.TRUE.equals(request.unlimited());
-        
+
         // Create customer with the specified ID and generated JWT token (will be hashed internally)
         // The policy type is applied to all model allowances, not the customer itself
         CustomerEntity customer = customerTokenService.createCustomerWithId(
             customerId,
-            request.name(), 
+            request.name(),
             policyType,
             request.defaultAllowance(),
             unlimited,
             apiToken
         );
 
-        logger.info("Created customer: {} with ID: {} (policy: {}, unlimited: {}, default: {})", 
+        LOGGER.info("Created customer: {} with ID: {} (policy: {}, unlimited: {}, default: {})",
                    customer.getName(), customer.getCustomerId(), policyType.getName(), unlimited, request.defaultAllowance());
 
         // Return the customer info along with the plaintext JWT token (only time it's visible)
@@ -131,11 +154,11 @@ public class CustomerController {
     public ResponseEntity<TokenGeneratedResponse> generateToken(
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
             @RequestBody(required = false) GenerateTokenRequest request) {
-        
+
         // Verify customer exists
         CustomerEntity customer = customerRepository.findByCustomerId(customerId)
             .orElse(null);
-        
+
         if (customer == null) {
             return ResponseEntity.notFound().build();
         }
@@ -163,7 +186,7 @@ public class CustomerController {
             customerTokenService.registerToken(customerId, apiToken, expiresAt);
         }
 
-        logger.info("Generated new JWT token for customer: {}", customerId);
+        LOGGER.info("Generated new JWT token for customer: {}", customerId);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(new TokenGeneratedResponse(
             apiToken,
@@ -189,8 +212,8 @@ public class CustomerController {
         }
 
         int revokedCount = customerTokenService.revokeAllTokens(customerId);
-        
-        logger.info("Revoked {} tokens for customer: {}", revokedCount, customerId);
+
+        LOGGER.info("Revoked {} tokens for customer: {}", revokedCount, customerId);
 
         return ResponseEntity.ok(new TokensRevokedResponse(revokedCount, "All tokens have been revoked"));
     }
@@ -239,14 +262,14 @@ public class CustomerController {
     public ResponseEntity<Map<String, Object>> updatePolicy(
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
             @RequestBody UpdatePolicyRequest request) {
-        
+
         if (request.policyTypeName() == null || request.policyTypeName().isBlank()) {
             return ResponseEntity.badRequest().build();
         }
 
         PolicyTypeEntity policyType = policyTypeRepository.findByName(request.policyTypeName())
             .orElse(null);
-        
+
         if (policyType == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -276,12 +299,12 @@ public class CustomerController {
     public ResponseEntity<CustomerResponse> updateStatus(
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
             @RequestBody UpdateStatusRequest request) {
-        
+
         return customerRepository.findByCustomerId(customerId)
             .map(customer -> {
                 customer.setEnabled(request.enabled());
                 customer = customerRepository.save(customer);
-                logger.info("Updated customer {} status to: {}", customerId, request.enabled());
+                LOGGER.info("Updated customer {} status to: {}", customerId, request.enabled());
                 return ResponseEntity.ok(toCustomerResponse(customer));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -298,18 +321,18 @@ public class CustomerController {
     @GetMapping("/{customerId}/allowances")
     public ResponseEntity<List<ModelAllowanceResponse>> getCustomerAllowances(
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId) {
-        
+
         if (!customerRepository.existsByCustomerId(customerId)) {
             return ResponseEntity.notFound().build();
         }
-        
-        List<CustomerModelAllowanceEntity> allowances = 
+
+        List<CustomerModelAllowanceEntity> allowances =
             customerUsageService.getCustomerAllowancesWithPolicyType(customerId);
-        
+
         List<ModelAllowanceResponse> responses = allowances.stream()
             .map(this::toModelAllowanceResponse)
             .toList();
-        
+
         return ResponseEntity.ok(responses);
     }
 
@@ -327,11 +350,11 @@ public class CustomerController {
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
             @Parameter(description = "Model identifier") @PathVariable String model,
             @RequestBody SetAllowanceRequest request) {
-        
+
         if (!customerRepository.existsByCustomerId(customerId)) {
             return ResponseEntity.notFound().build();
         }
-        
+
         try {
             // Resolve policy type if specified
             PolicyTypeEntity policyType = null;
@@ -340,7 +363,7 @@ public class CustomerController {
                     .orElseThrow(() -> new IllegalArgumentException(
                         "Policy type not found: " + request.policyTypeName()));
             }
-            
+
             CustomerModelAllowanceEntity allowance;
             if (policyType != null) {
                 allowance = customerUsageService.setAllowanceWithPolicyType(
@@ -348,7 +371,7 @@ public class CustomerController {
             } else {
                 allowance = customerUsageService.setAllowance(customerId, model, request.allowedTokens());
             }
-            
+
             return ResponseEntity.ok(toModelAllowanceResponse(allowance));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
@@ -367,11 +390,11 @@ public class CustomerController {
     public ResponseEntity<Map<String, Object>> setBulkAllowance(
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
             @RequestBody BulkSetAllowanceRequest request) {
-        
+
         if (!customerRepository.existsByCustomerId(customerId)) {
             return ResponseEntity.notFound().build();
         }
-        
+
         try {
             int updated;
             if (Boolean.TRUE.equals(request.unlimited())) {
@@ -379,11 +402,11 @@ public class CustomerController {
             } else {
                 updated = customerUsageService.setAllowanceForAllModels(customerId, request.allowedTokens());
             }
-            
+
             return ResponseEntity.ok(Map.of(
                 "customerId", customerId,
                 "modelsUpdated", updated,
-                "allowedTokens", Boolean.TRUE.equals(request.unlimited()) ? "UNLIMITED" : 
+                "allowedTokens", Boolean.TRUE.equals(request.unlimited()) ? "UNLIMITED" :
                     (request.allowedTokens() != null ? request.allowedTokens() : 0)
             ));
         } catch (IllegalArgumentException e) {
@@ -403,11 +426,11 @@ public class CustomerController {
     public ResponseEntity<Void> resetModelUsage(
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
             @Parameter(description = "Model identifier") @PathVariable String model) {
-        
+
         if (!customerRepository.existsByCustomerId(customerId)) {
             return ResponseEntity.notFound().build();
         }
-        
+
         customerUsageService.resetUsage(customerId, model);
         return ResponseEntity.ok().build();
     }
@@ -426,7 +449,7 @@ public class CustomerController {
         if (!customerRepository.existsByCustomerId(customerId)) {
             return ResponseEntity.notFound().build();
         }
-        
+
         customerUsageService.resetAllUsage(customerId);
         return ResponseEntity.ok().build();
     }
@@ -459,20 +482,20 @@ public class CustomerController {
     public ResponseEntity<Map<String, Object>> setBulkPolicyType(
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
             @RequestBody BulkPolicyTypeRequest request) {
-        
+
         if (!customerRepository.existsByCustomerId(customerId)) {
             return ResponseEntity.notFound().build();
         }
-        
+
         if (request.policyTypeName() == null || request.policyTypeName().isBlank()) {
             return ResponseEntity.badRequest().build();
         }
-        
+
         try {
             PolicyTypeEntity policyType = policyTypeRepository.findByName(request.policyTypeName())
                 .orElseThrow(() -> new IllegalArgumentException(
                     "Policy type not found: " + request.policyTypeName()));
-            
+
             int updated;
             if (request.allowedTokens() != null) {
                 // Set both allowance and policy type for all models
@@ -482,10 +505,10 @@ public class CustomerController {
                 // Only update policy type for existing allowances
                 updated = customerUsageService.setPolicyTypeForAllAllowances(customerId, policyType);
             }
-            
-            logger.info("Set policy type {} for customer {} on {} allowances", 
+
+            LOGGER.info("Set policy type {} for customer {} on {} allowances",
                        policyType.getName(), customerId, updated);
-            
+
             return ResponseEntity.ok(Map.of(
                 "customerId", customerId,
                 "allowancesUpdated", updated,
@@ -510,12 +533,12 @@ public class CustomerController {
     public ResponseEntity<Map<String, Object>> updateNotificationSettings(
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
             @RequestBody UpdateNotificationSettingsRequest request) {
-        
+
         Optional<CustomerEntity> customerOpt = customerRepository.findByCustomerId(customerId);
         if (customerOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        
+
         CustomerEntity customer = customerOpt.get();
         if (request.defaultNotificationThreshold() != null) {
             customer.setDefaultMinTokenNotificationThreshold(request.defaultNotificationThreshold());
@@ -527,18 +550,18 @@ public class CustomerController {
             customer.setNotificationEmail(request.email().isBlank() ? null : request.email());
         }
         customer = customerRepository.save(customer);
-        
-        logger.info("Updated notification settings for customer {}", customerId);
-        
+
+        LOGGER.info("Updated notification settings for customer {}", customerId);
+
         Map<String, Object> response = new java.util.HashMap<>();
         response.put("customerId", customerId);
         response.put("defaultNotificationThreshold", customer.getDefaultMinTokenNotificationThreshold());
         response.put("webhookUrl", customer.getNotificationWebhookUrl() != null ? customer.getNotificationWebhookUrl() : "");
         response.put("email", customer.getNotificationEmail() != null ? customer.getNotificationEmail() : "");
-        
+
         return ResponseEntity.ok(response);
     }
-    
+
     @Operation(
         summary = "Update allowance notification threshold",
         description = "Updates the notification threshold for a specific model allowance."
@@ -553,13 +576,13 @@ public class CustomerController {
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
             @Parameter(description = "Model identifier") @PathVariable String model,
             @RequestBody UpdateAllowanceNotificationThresholdRequest request) {
-        
+
         if (!customerRepository.existsByCustomerId(customerId)) {
             return ResponseEntity.notFound().build();
         }
-        
+
         try {
-            CustomerModelAllowanceEntity allowance = 
+            CustomerModelAllowanceEntity allowance =
                 customerUsageService.setNotificationThreshold(customerId, model, request.threshold());
             return ResponseEntity.ok(toModelAllowanceResponse(allowance));
         } catch (IllegalArgumentException e) {
@@ -570,13 +593,13 @@ public class CustomerController {
     // ==================== Helper Methods ====================
 
     private CustomerResponse toCustomerResponse(CustomerEntity customer) {
-        List<CustomerModelAllowanceEntity> allowances = 
+        List<CustomerModelAllowanceEntity> allowances =
             customerUsageService.getCustomerAllowancesWithPolicyType(customer.getCustomerId());
-        
+
         List<ModelAllowanceResponse> allowanceResponses = allowances.stream()
             .map(this::toModelAllowanceResponse)
             .toList();
-        
+
         return new CustomerResponse(
             customer.getId(),
             customer.getCustomerId(),
@@ -600,7 +623,7 @@ public class CustomerController {
     private ModelAllowanceResponse toModelAllowanceResponse(CustomerModelAllowanceEntity allowance) {
         PolicyTypeEntity policy = allowance.getPolicyType();
         Integer daysUntilReset = calculateDaysUntilReset(allowance, policy);
-        
+
         return new ModelAllowanceResponse(
             allowance.getId(),
             allowance.getLlmModel().getModel(),
@@ -625,12 +648,12 @@ public class CustomerController {
         if (policy == null || policy.isUnlimited()) {
             return null;
         }
-        
+
         Integer resetDays = policy.getResetDays();
         if (resetDays == null || allowance.getTokensResetAt() == null) {
             return null;
         }
-        
+
         LocalDateTime nextReset = allowance.getTokensResetAt().plusDays(resetDays);
         long daysUntil = ChronoUnit.DAYS.between(LocalDateTime.now(), nextReset);
         return Math.max(0, (int) daysUntil);

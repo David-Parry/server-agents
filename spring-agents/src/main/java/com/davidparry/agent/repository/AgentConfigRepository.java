@@ -15,31 +15,40 @@ import java.util.UUID;
  */
 @Repository
 public interface AgentConfigRepository extends JpaRepository<AgentConfigEntity, UUID> {
-    
+
     /**
      * Find agent configuration by type.
      */
     Optional<AgentConfigEntity> findByAgentType(AgentType agentType);
-    
+
     /**
      * Find enabled agent configuration by type.
      */
     Optional<AgentConfigEntity> findByAgentTypeAndEnabledTrue(AgentType agentType);
-    
+
     /**
      * Find all enabled agent configurations.
      */
     List<AgentConfigEntity> findAllByEnabledTrue();
-    
+
     /**
      * Check if configuration exists for agent type.
      */
     boolean existsByAgentType(AgentType agentType);
-    
+
     /**
-     * Find agent configuration with execution config eagerly loaded.
+     * Find agent configuration with execution configs eagerly loaded.
      */
-    @Query("SELECT a FROM AgentConfigEntity a LEFT JOIN FETCH a.executionConfig " +
-           "WHERE a.agentType = :agentType AND a.enabled = true")
-    Optional<AgentConfigEntity> findByAgentTypeWithExecutionConfig(AgentType agentType);
+    @Query("SELECT a FROM AgentConfigEntity a LEFT JOIN FETCH a.executionConfigs "
+           + "WHERE a.agentType = :agentType AND a.enabled = true")
+    Optional<AgentConfigEntity> findByAgentTypeWithExecutionConfigs(AgentType agentType);
+
+    /**
+     * Find agent configuration with default execution config (where customer is null).
+     */
+    @Query("SELECT DISTINCT a FROM AgentConfigEntity a "
+           + "LEFT JOIN FETCH a.executionConfigs ec "
+           + "WHERE a.agentType = :agentType AND a.enabled = true "
+           + "AND (ec IS NULL OR ec.customer IS NULL)")
+    Optional<AgentConfigEntity> findByAgentTypeWithDefaultExecutionConfig(AgentType agentType);
 }

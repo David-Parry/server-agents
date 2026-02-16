@@ -14,8 +14,8 @@ public record AdminProperties(
 ) {
     public AdminProperties {
         if (enabled && (apiToken == null || apiToken.isBlank())) {
-            throw new IllegalStateException("Admin API token must be configured when admin API is enabled. " +
-                "Set 'agent.admin.api-token' or disable admin API with 'agent.admin.enabled=false'");
+            throw new IllegalStateException("Admin API token must be configured when admin API is enabled. "
+                + "Set 'agent.admin.api-token' or disable admin API with 'agent.admin.enabled=false'");
         }
     }
 }

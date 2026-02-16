@@ -11,13 +11,13 @@ import java.util.List;
 
 /**
  * Custom Actuator endpoint that exposes per-customer metrics in Prometheus format.
- * 
+ *
  * <p>Accessible at: <code>/actuator/prometheuscustomers</code></p>
- * 
+ *
  * <p>This endpoint is designed to be scraped by Prometheus separately from the main
  * <code>/actuator/prometheus</code> endpoint to avoid high cardinality issues on the
  * main metrics endpoint.</p>
- * 
+ *
  * <h2>Prometheus Scrape Configuration</h2>
  * <pre>
  * scrape_configs:
@@ -27,7 +27,7 @@ import java.util.List;
  *     scrape_interval: 30s
  *     static_configs:
  *       - targets: ['localhost:8080']
- *   
+ *
  *   # Per-customer metrics (higher cardinality, less frequent)
  *   - job_name: 'spring-agents-customers'
  *     metrics_path: '/actuator/prometheuscustomers'
@@ -36,7 +36,7 @@ import java.util.List;
  *     static_configs:
  *       - targets: ['localhost:8080']
  * </pre>
- * 
+ *
  * <h2>Exposed Metrics</h2>
  * <ul>
  *   <li><code>spring_agents_customer_connections_active</code> - Active WebSocket connections</li>
@@ -55,18 +55,18 @@ import java.util.List;
 @Endpoint(id = "prometheuscustomers")
 public class CustomerPrometheusEndpoint {
 
-    private static final Logger logger = LoggerFactory.getLogger(CustomerPrometheusEndpoint.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CustomerPrometheusEndpoint.class);
 
     private final CustomerMetricsService customerMetricsService;
 
     public CustomerPrometheusEndpoint(CustomerMetricsService customerMetricsService) {
         this.customerMetricsService = customerMetricsService;
-        logger.info("CustomerPrometheusEndpoint initialized at /actuator/prometheuscustomers");
+        LOGGER.info("CustomerPrometheusEndpoint initialized at /actuator/prometheuscustomers");
     }
 
     /**
      * Scrape endpoint that returns metrics in Prometheus text format.
-     * 
+     *
      * @return Prometheus-formatted metrics text
      */
     @ReadOperation(produces = "text/plain; version=0.0.4; charset=utf-8")
@@ -199,7 +199,7 @@ public class CustomerPrometheusEndpoint {
         sb.append("# TYPE spring_agents_customers_tracked_total gauge\n");
         sb.append("spring_agents_customers_tracked_total ").append(snapshots.size()).append("\n");
 
-        logger.trace("Generated Prometheus metrics for {} customers", snapshots.size());
+        LOGGER.trace("Generated Prometheus metrics for {} customers", snapshots.size());
         return sb.toString();
     }
 
@@ -240,7 +240,9 @@ public class CustomerPrometheusEndpoint {
      * Handles backslashes, double quotes, and newlines.
      */
     private String escapeLabel(String value) {
-        if (value == null) return "";
+        if (value == null) {
+            return "";
+        }
         return value.replace("\\", "\\\\")
                 .replace("\"", "\\\"")
                 .replace("\n", "\\n");

@@ -19,59 +19,59 @@ import java.util.UUID;
  */
 @Repository
 public interface SecurityAuditLogRepository extends JpaRepository<SecurityAuditLogEntity, UUID> {
-    
+
     /**
      * Find audit logs for a specific customer.
      */
     Page<SecurityAuditLogEntity> findByCustomerIdOrderByCreatedAtDesc(
         UUID customerId, Pageable pageable);
-    
+
     /**
      * Find audit logs by event type within a time range.
      */
     List<SecurityAuditLogEntity> findByEventTypeAndCreatedAtBetween(
         EventType eventType, LocalDateTime start, LocalDateTime end);
-    
+
     /**
      * Find audit logs by category within a time range.
      */
     List<SecurityAuditLogEntity> findByEventCategoryAndCreatedAtBetween(
         EventCategory category, LocalDateTime start, LocalDateTime end);
-    
+
     /**
      * Find audit logs for a specific secret version.
      */
     List<SecurityAuditLogEntity> findBySecretVersionOrderByCreatedAtDesc(String secretVersion);
-    
+
     /**
      * Count events by type for monitoring/metrics.
      */
-    @Query("SELECT a.eventType, COUNT(a) FROM SecurityAuditLogEntity a " +
-           "WHERE a.createdAt > :since GROUP BY a.eventType")
+    @Query("SELECT a.eventType, COUNT(a) FROM SecurityAuditLogEntity a "
+           + "WHERE a.createdAt > :since GROUP BY a.eventType")
     List<Object[]> countEventsByTypeSince(LocalDateTime since);
-    
+
     /**
      * Delete old audit logs (retention policy).
      */
     @Modifying
     int deleteByCreatedAtBefore(LocalDateTime cutoff);
-    
+
     /**
      * Find audit logs with filters and pagination.
      * All filter parameters are optional (null = no filter).
      */
-    @Query("SELECT a FROM SecurityAuditLogEntity a " +
-           "WHERE (:customerId IS NULL OR a.customerId = :customerId) " +
-           "AND (:eventType IS NULL OR a.eventType = :eventType) " +
-           "AND (:eventCategory IS NULL OR a.eventCategory = :eventCategory) " +
-           "AND (:from IS NULL OR a.createdAt >= :from) " +
-           "AND (:to IS NULL OR a.createdAt <= :to) " +
-           "ORDER BY a.createdAt DESC")
+    @Query("SELECT a FROM SecurityAuditLogEntity a "
+           + "WHERE (:customerId IS NULL OR a.customerId = :customerId) "
+           + "AND (:eventType IS NULL OR a.eventType = :eventType) "
+           + "AND (:eventCategory IS NULL OR a.eventCategory = :eventCategory) "
+           + "AND (:from IS NULL OR a.createdAt >= :from) "
+           + "AND (:to IS NULL OR a.createdAt <= :to) "
+           + "ORDER BY a.createdAt DESC")
     Page<SecurityAuditLogEntity> findByFilters(
-        UUID customerId, 
-        EventType eventType, 
+        UUID customerId,
+        EventType eventType,
         EventCategory eventCategory,
-        LocalDateTime from, 
-        LocalDateTime to, 
+        LocalDateTime from,
+        LocalDateTime to,
         Pageable pageable);
 }

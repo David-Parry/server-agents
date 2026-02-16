@@ -16,34 +16,34 @@ import java.util.UUID;
  */
 @Repository
 public interface CustomerRepository extends JpaRepository<CustomerEntity, UUID> {
-    
+
     /**
      * Find customer by their unique customer ID (UUID).
      */
     Optional<CustomerEntity> findByCustomerId(UUID customerId);
-    
+
     /**
      * Find enabled customer by their unique customer ID.
      */
     Optional<CustomerEntity> findByCustomerIdAndEnabledTrue(UUID customerId);
-    
+
     /**
      * Check if customer exists by customer ID.
      */
     boolean existsByCustomerId(UUID customerId);
-    
+
     /**
      * Find all enabled customers with their active tokens.
      */
-    @Query("SELECT DISTINCT c FROM CustomerEntity c LEFT JOIN FETCH c.tokens t " +
-           "WHERE c.enabled = true AND t.active = true")
+    @Query("SELECT DISTINCT c FROM CustomerEntity c LEFT JOIN FETCH c.tokens t "
+           + "WHERE c.enabled = true AND t.active = true")
     List<CustomerEntity> findAllEnabledWithActiveTokens();
-    
+
     /**
      * Count enabled customers.
      */
     long countByEnabledTrue();
-    
+
     /**
      * Find customers by enabled status with pagination.
      */

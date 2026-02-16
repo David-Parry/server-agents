@@ -13,28 +13,28 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class SecurityConfigurationLogger {
-    
-    private static final Logger logger = LoggerFactory.getLogger(SecurityConfigurationLogger.class);
-    
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SecurityConfigurationLogger.class);
+
     private final TokenHashingProperties hashingProperties;
     private final SecurityAuditService auditService;
-    
+
     public SecurityConfigurationLogger(
             TokenHashingProperties hashingProperties,
             SecurityAuditService auditService) {
         this.hashingProperties = hashingProperties;
         this.auditService = auditService;
     }
-    
+
     @EventListener(ApplicationReadyEvent.class)
     public void logSecurityConfiguration() {
         String currentVersion = hashingProperties.currentSecretVersion();
-        
-        logger.info("=== Security Configuration ===");
-        logger.info("Available secret versions: {}", hashingProperties.getAvailableVersions());
-        logger.info("Current secret version: {}", currentVersion);
-        logger.info("==============================");
-        
+
+        LOGGER.info("=== Security Configuration ===");
+        LOGGER.info("Available secret versions: {}", hashingProperties.getAvailableVersions());
+        LOGGER.info("Current secret version: {}", currentVersion);
+        LOGGER.info("==============================");
+
         // Audit log each configured version
         for (String version : hashingProperties.getAvailableVersions()) {
             boolean isCurrent = version.equals(currentVersion);

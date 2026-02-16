@@ -67,18 +67,86 @@ SELECT RANDOM_UUID(), '24b6ca5d-fcbc-4f72-a2ac-b3e4d410ed2d', m.model, 'b2c3d4e5
 FROM llm_model m WHERE m.enabled = TRUE;
 
 -- Update specific model allowances for ACME Monthly
-UPDATE customer_model_allowance 
-SET allowed_tokens = 100000 
+UPDATE customer_model_allowance
+SET allowed_tokens = 100000
 WHERE customer_id = '24b6ca5d-fcbc-4f72-a2ac-b3e4d410ed2d' AND model = 'claude-sonnet-4-5';
 
-UPDATE customer_model_allowance 
-SET allowed_tokens = 50000 
+UPDATE customer_model_allowance
+SET allowed_tokens = 50000
 WHERE customer_id = '24b6ca5d-fcbc-4f72-a2ac-b3e4d410ed2d' AND model = 'claude-opus-4-20250514';
 
-UPDATE customer_model_allowance 
-SET allowed_tokens = 80000 
+UPDATE customer_model_allowance
+SET allowed_tokens = 80000
 WHERE customer_id = '24b6ca5d-fcbc-4f72-a2ac-b3e4d410ed2d' AND model = 'gpt-4o';
 
-UPDATE customer_model_allowance 
-SET allowed_tokens = 80000 
+UPDATE customer_model_allowance
+SET allowed_tokens = 80000
 WHERE customer_id = '24b6ca5d-fcbc-4f72-a2ac-b3e4d410ed2d' AND model = 'gpt-4-turbo';
+
+-- -----------------------------------------------------------------------------
+-- Part 3: Assign Agent Types to ACME Unlimited Customer
+-- -----------------------------------------------------------------------------
+-- ACME Unlimited gets access to all agent types with default settings
+
+INSERT INTO customer_agent_type (id, customer_id, agent_type, enabled, custom_token_limit, priority, created_at, updated_at)
+VALUES
+    (RANDOM_UUID(), '75d75941-1d5b-4db5-a7c5-b8561c5402e0', 'ANALYST', TRUE, NULL, 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    (RANDOM_UUID(), '75d75941-1d5b-4db5-a7c5-b8561c5402e0', 'ENGINEER', TRUE, NULL, 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    (RANDOM_UUID(), '75d75941-1d5b-4db5-a7c5-b8561c5402e0', 'REVIEWER', TRUE, NULL, 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    (RANDOM_UUID(), '75d75941-1d5b-4db5-a7c5-b8561c5402e0', 'DIAGNOSTICIAN', TRUE, NULL, 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- -----------------------------------------------------------------------------
+-- Part 4: Assign Agent Types to ACME Monthly Customer
+-- -----------------------------------------------------------------------------
+-- ACME Monthly gets access to ANALYST, ENGINEER, and REVIEWER only, with token limits
+
+INSERT INTO customer_agent_type (id, customer_id, agent_type, enabled, custom_token_limit, priority, created_at, updated_at)
+VALUES
+    (RANDOM_UUID(), '24b6ca5d-fcbc-4f72-a2ac-b3e4d410ed2d', 'ANALYST', TRUE, 50000, 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    (RANDOM_UUID(), '24b6ca5d-fcbc-4f72-a2ac-b3e4d410ed2d', 'ENGINEER', TRUE, 50000, 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    (RANDOM_UUID(), '24b6ca5d-fcbc-4f72-a2ac-b3e4d410ed2d', 'REVIEWER', TRUE, 25000, 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- -----------------------------------------------------------------------------
+-- Part 5: Customer-Specific Execution Configs for ACME Unlimited
+-- -----------------------------------------------------------------------------
+-- ACME Unlimited gets higher limits and more retries
+
+-- ANALYST config for ACME Unlimited - higher token limit for comprehensive analysis
+INSERT INTO agent_execution_config (id, agent_config_id, customer_id, max_tokens, temperature, timeout_seconds, retry_attempts, retry_delay_ms, created_at, updated_at)
+SELECT RANDOM_UUID(), ac.id, '75d75941-1d5b-4db5-a7c5-b8561c5402e0', 8192, 0.50, 600, 3, 2000, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+FROM agent_config ac WHERE ac.agent_type = 'ANALYST';
+
+-- ENGINEER config for ACME Unlimited - higher token limit for complex implementations
+INSERT INTO agent_execution_config (id, agent_config_id, customer_id, max_tokens, temperature, timeout_seconds, retry_attempts, retry_delay_ms, created_at, updated_at)
+SELECT RANDOM_UUID(), ac.id, '75d75941-1d5b-4db5-a7c5-b8561c5402e0', 8192, 0.30, 600, 3, 2000, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+FROM agent_config ac WHERE ac.agent_type = 'ENGINEER';
+
+-- REVIEWER config for ACME Unlimited - lower temperature for consistent reviews
+INSERT INTO agent_execution_config (id, agent_config_id, customer_id, max_tokens, temperature, timeout_seconds, retry_attempts, retry_delay_ms, created_at, updated_at)
+SELECT RANDOM_UUID(), ac.id, '75d75941-1d5b-4db5-a7c5-b8561c5402e0', 6144, 0.20, 450, 3, 2000, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+FROM agent_config ac WHERE ac.agent_type = 'REVIEWER';
+
+-- DIAGNOSTICIAN config for ACME Unlimited - longer timeout for complex diagnostics
+INSERT INTO agent_execution_config (id, agent_config_id, customer_id, max_tokens, temperature, timeout_seconds, retry_attempts, retry_delay_ms, created_at, updated_at)
+SELECT RANDOM_UUID(), ac.id, '75d75941-1d5b-4db5-a7c5-b8561c5402e0', 8192, 0.40, 900, 4, 3000, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+FROM agent_config ac WHERE ac.agent_type = 'DIAGNOSTICIAN';
+
+-- -----------------------------------------------------------------------------
+-- Part 6: Customer-Specific Execution Configs for ACME Monthly
+-- -----------------------------------------------------------------------------
+-- ACME Monthly gets standard limits with shorter timeouts
+
+-- ANALYST config for ACME Monthly - standard limits
+INSERT INTO agent_execution_config (id, agent_config_id, customer_id, max_tokens, temperature, timeout_seconds, retry_attempts, retry_delay_ms, created_at, updated_at)
+SELECT RANDOM_UUID(), ac.id, '24b6ca5d-fcbc-4f72-a2ac-b3e4d410ed2d', 4096, 0.60, 300, 2, 1000, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+FROM agent_config ac WHERE ac.agent_type = 'ANALYST';
+
+-- ENGINEER config for ACME Monthly - standard limits
+INSERT INTO agent_execution_config (id, agent_config_id, customer_id, max_tokens, temperature, timeout_seconds, retry_attempts, retry_delay_ms, created_at, updated_at)
+SELECT RANDOM_UUID(), ac.id, '24b6ca5d-fcbc-4f72-a2ac-b3e4d410ed2d', 4096, 0.40, 300, 2, 1000, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+FROM agent_config ac WHERE ac.agent_type = 'ENGINEER';
+
+-- REVIEWER config for ACME Monthly - lower limits
+INSERT INTO agent_execution_config (id, agent_config_id, customer_id, max_tokens, temperature, timeout_seconds, retry_attempts, retry_delay_ms, created_at, updated_at)
+SELECT RANDOM_UUID(), ac.id, '24b6ca5d-fcbc-4f72-a2ac-b3e4d410ed2d', 2048, 0.30, 180, 1, 500, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+FROM agent_config ac WHERE ac.agent_type = 'REVIEWER';

@@ -34,13 +34,13 @@ import java.util.function.Consumer;
 /**
  * Service for executing prompts using Spring AI ChatClient.
  * Supports both streaming and non-streaming responses with remote tool callbacks.
- * 
+ *
  * Validates per-model token usage before execution and records usage after.
  */
 @Service
 public class PromptExecutionService {
 
-    private static final Logger logger = LoggerFactory.getLogger(PromptExecutionService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(PromptExecutionService.class);
 
     private final ChatClient.Builder anthropicClientBuilder;
     private final ChatClient.Builder ollamaClientBuilder;
@@ -50,7 +50,7 @@ public class PromptExecutionService {
     private final Counter promptSuccessCounter;
     private final Counter promptFailureCounter;
     private final Counter usageLimitExceededCounter;
-    
+
     // Callback for sending WebSocket notifications (set by McpProxyWebSocketHandler)
     private Consumer<LowTokenNotificationEvent> webSocketNotifier;
 
@@ -89,12 +89,9 @@ public class PromptExecutionService {
      */
     public CompletableFuture<ExecutionResult> executePrompt(PromptSession session) {
         return CompletableFuture.supplyAsync(() -> {
-            try (var ignored = MDC.putCloseable("sessionId", session.getSessionId()); var ignored2 =
-                    MDC.putCloseable("connectionId", session
-                    .getConnection()
-                    .getConnectionId()); var ignored3 = MDC.putCloseable("clientId", session
-                    .getConnection()
-                    .getClientId())) {
+            try (var ignored = MDC.putCloseable("sessionId", session.getSessionId());
+                 var ignored2 = MDC.putCloseable("connectionId", session.getConnection().getConnectionId());
+                 var ignored3 = MDC.putCloseable("clientId", session.getConnection().getClientId())) {
                 return promptExecutionTimer.record(() -> doExecutePrompt(session));
             }
         });
@@ -111,20 +108,20 @@ public class PromptExecutionService {
             // Extract customer ID from connection (clientId is the customer's external UUID)
             UUID customerId = UUID.fromString(session.getConnection().getClientId());
             String model = session.getModel();
-            
+
             // Validate usage BEFORE execution
-            CustomerUsageService.UsageValidationResult validation = 
+            CustomerUsageService.UsageValidationResult validation =
                 customerUsageService.validateUsage(customerId, model);
-            
+
             if (!validation.allowed()) {
-                logger.warn("Usage validation failed for customer {} on model {}: {}", 
+                LOGGER.warn("Usage validation failed for customer {} on model {}: {}",
                            customerId, model, validation.message());
-                
+
                 usageLimitExceededCounter.increment();
                 promptFailureCounter.increment();
-                
+
                 PromptSession failedSession = currentSession.get().fail(validation.message());
-                
+
                 SessionResult result = SessionResult.builder()
                     .sessionId(failedSession.getSessionId())
                     .success(false)
@@ -134,11 +131,11 @@ public class PromptExecutionService {
                     .totalDurationMs(failedSession.getDurationMs())
                     .metrics(failedSession.createMetrics(0))
                     .build();
-                
+
                 return new ExecutionResult(result, failedSession);
             }
-            
-            logger.info("Starting prompt execution: streaming={}, model={}, customer={}", 
+
+            LOGGER.info("Starting prompt execution: streaming={}, model={}, customer={}",
                        session.isStreamingEnabled(), model, customerId);
 
             // Select the appropriate chat client based on model
@@ -156,9 +153,9 @@ public class PromptExecutionService {
             // Record usage AFTER successful execution
             if (llmResponse.tokenCount() > 0) {
                 customerUsageService.recordUsage(customerId, model, llmResponse.tokenCount());
-                logger.debug("Recorded {} tokens for customer {} on model {}", 
+                LOGGER.debug("Recorded {} tokens for customer {} on model {}",
                             llmResponse.tokenCount(), customerId, model);
-                
+
                 // Check for low token notification after recording usage
                 checkAndSendLowTokenNotification(customerId, model);
             }
@@ -173,10 +170,10 @@ public class PromptExecutionService {
             PromptSession completedSession = latestSession.complete();
             promptSuccessCounter.increment();
 
-            logger.info("Prompt execution completed successfully, toolCallCount={}, tokenCount={}",
+            LOGGER.info("Prompt execution completed successfully, toolCallCount={}, tokenCount={}",
                         completedSession.getToolCallCount(), llmResponse.tokenCount());
 
-            logger.debug("Prompt Session {}", completedSession);
+            LOGGER.debug("Prompt Session {}", completedSession);
 
             SessionResult result = SessionResult
                     .builder()
@@ -192,7 +189,7 @@ public class PromptExecutionService {
             return new ExecutionResult(result, completedSession);
 
         } catch (Exception e) {
-            logger.error("Prompt execution failed", e);
+            LOGGER.error("Prompt execution failed", e);
             promptFailureCounter.increment();
 
             // Get the latest session from the connection to preserve toolCallCount
@@ -219,7 +216,7 @@ public class PromptExecutionService {
     }
 
     private LlmResponse executeBlocking(ChatClient client, PromptSession session, List<ToolCallback> callbacks) {
-        logger.debug("Executing blocking prompt");
+        LOGGER.debug("Executing blocking prompt");
         JsonNodeOutputConverter converter = new JsonNodeOutputConverter(session.responseSchema());
 
         // Enhance system prompt with JSON instruction
@@ -235,7 +232,6 @@ public class PromptExecutionService {
 
         return convertToLlmResponse(converter, chatResponse);
     }
-
 
     /**
      * this is meant for calls that have an entire ChatResponse not portions of it.
@@ -253,7 +249,6 @@ public class PromptExecutionService {
         }
     }
 
-
     private LlmResponse convertToLlmResponse(String content, JsonNodeOutputConverter converter,
                                              ChatResponse chatResponse) {
         boolean success = false;
@@ -270,21 +265,21 @@ public class PromptExecutionService {
                 ((com.fasterxml.jackson.databind.node.ObjectNode) result).remove("reason");
             }
         } else {
-            result = converter.failedNodeConversionResponse("Content could not be cleansed and valid JSON format could not be extracted from LLM content:\n" + content);
+            result = converter.failedNodeConversionResponse(
+                    "Content could not be cleansed and valid JSON could not be extracted from LLM content:\n"
+                    + content);
         }
 
         // Extract token count from metadata
         int tokenCount = extractTokenCount(chatResponse);
-        logger.debug("Blocking execution completed: tokenCount={} success= {}", tokenCount, success);
-        logger.trace("!!!!!!! the result after being parsed is \n{}", result);
+        LOGGER.debug("Blocking execution completed: tokenCount={} success= {}", tokenCount, success);
+        LOGGER.trace("!!!!!!! the result after being parsed is \n{}", result);
         return new LlmResponse(result, tokenCount, success);
     }
 
-
-
     private LlmResponse executeStreaming(ChatClient client, AtomicReference<PromptSession> sessionRef,
                                          List<ToolCallback> callbacks) {
-        logger.debug("Executing streaming prompt");
+        LOGGER.debug("Executing streaming prompt");
 
         PromptSession session = sessionRef.get();
         StringBuilder fullResponse = new StringBuilder();
@@ -326,20 +321,20 @@ public class PromptExecutionService {
                 // Send final chunk marker
                 PromptSession updated = sessionRef.get().sendStreamChunk("", true);
                 sessionRef.set(updated);
-                logger.debug("Streaming completed: {} chunks sent", chunkCount.get());
+                LOGGER.debug("Streaming completed: {} chunks sent", chunkCount.get());
 
             }).doOnError(error -> {
-                logger.error("Streaming error", error);
+                LOGGER.error("Streaming error", error);
             }).blockLast(); // Block until stream completes
 
         } catch (Exception e) {
-            logger.error("Error during streaming execution", e);
+            LOGGER.error("Error during streaming execution", e);
             throw new RuntimeException("Streaming execution failed: " + e.getMessage(), e);
         }
 
         // Extract token count from the last response (usually contains aggregated usage)
         int tokenCount = extractTokenCount(lastChatResponse.get());
-        logger.debug("Streaming execution completed: tokenCount={}", tokenCount);
+        LOGGER.debug("Streaming execution completed: tokenCount={}", tokenCount);
 
         return convertToLlmResponse(fullResponse.toString(), converter, lastChatResponse.get());
     }
@@ -374,47 +369,47 @@ public class PromptExecutionService {
 
         // Check for Ollama models
         if (modelLower.contains("llama") || modelLower.contains("mistral") || modelLower.contains("codellama") || modelLower.contains("ollama")) {
-            logger.debug("Using Ollama client for model: {}", model);
+            LOGGER.debug("Using Ollama client for model: {}", model);
             return ollamaClientBuilder.build();
         }
 
         // Check for Anthropic models
         if (modelLower.contains("claude") || modelLower.contains("anthropic")) {
-            logger.debug("Using Anthropic client for model: {}", model);
+            LOGGER.debug("Using Anthropic client for model: {}", model);
             return anthropicClientBuilder.build();
         }
 
         // Default to Anthropic
-        logger.debug("Using default Anthropic client for model: {}", model);
+        LOGGER.debug("Using default Anthropic client for model: {}", model);
         return anthropicClientBuilder.build();
     }
-    
+
     /**
      * Sets the WebSocket notifier callback for sending low-token notifications to clients.
      * This is called by McpProxyWebSocketHandler during initialization.
-     * 
+     *
      * @param notifier the callback to send notifications via WebSocket
      */
     public void setWebSocketNotifier(Consumer<LowTokenNotificationEvent> notifier) {
         this.webSocketNotifier = notifier;
     }
-    
+
     /**
      * Checks if a low-token notification should be sent and triggers it if needed.
      * This is called after recording token usage.
      */
     private void checkAndSendLowTokenNotification(UUID customerId, String model) {
         try {
-            Optional<CustomerModelAllowanceEntity> allowanceOpt = 
+            Optional<CustomerModelAllowanceEntity> allowanceOpt =
                 customerUsageService.getAllowanceWithCustomer(customerId, model);
-            
+
             if (allowanceOpt.isPresent()) {
                 CustomerModelAllowanceEntity allowance = allowanceOpt.get();
                 notificationService.checkAndNotify(allowance, webSocketNotifier);
             }
         } catch (Exception e) {
             // Don't let notification failures affect the main execution flow
-            logger.warn("Failed to check/send low token notification for customer {} on model {}: {}",
+            LOGGER.warn("Failed to check/send low token notification for customer {} on model {}: {}",
                        customerId, model, e.getMessage());
         }
     }

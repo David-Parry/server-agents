@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class MetricsScheduler {
 
-    private static final Logger logger = LoggerFactory.getLogger(MetricsScheduler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MetricsScheduler.class);
 
     private final PrometheusMetricsService metricsService;
 
@@ -28,9 +28,9 @@ public class MetricsScheduler {
     public void refreshMetrics() {
         try {
             metricsService.refreshMetrics();
-            logger.trace("Scheduled metrics refresh completed");
+            LOGGER.trace("Scheduled metrics refresh completed");
         } catch (Exception e) {
-            logger.error("Scheduled metrics refresh failed", e);
+            LOGGER.error("Scheduled metrics refresh failed", e);
         }
     }
 }

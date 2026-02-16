@@ -45,9 +45,8 @@ import java.util.regex.Pattern;
 @Component
 public class TemplateProcessor {
 
-    private static final Logger logger = LoggerFactory.getLogger(TemplateProcessor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(TemplateProcessor.class);
     private final ObjectMapper objectMapper;
-
 
     public TemplateProcessor(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
@@ -86,8 +85,8 @@ public class TemplateProcessor {
             matcher.appendReplacement(result, Matcher.quoteReplacement(value));
         }
         matcher.appendTail(result);
-        if (logger.isTraceEnabled()) {
-            logger.trace("Processed template: {}", result);
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("Processed template: {}", result);
         }
         return result.toString();
     }

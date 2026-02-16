@@ -18,13 +18,13 @@ public record JwtProperties(
      */
     @NotBlank(message = "JWT signing key must be configured")
     String signingKey,
-    
+
     /**
      * Issuer claim for the JWT.
      */
     @NotBlank(message = "JWT issuer must be configured")
     String issuer,
-    
+
     /**
      * Default token expiration in days. Set to 0 for non-expiring tokens.
      */

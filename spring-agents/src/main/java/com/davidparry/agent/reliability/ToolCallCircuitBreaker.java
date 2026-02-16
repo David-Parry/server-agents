@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class ToolCallCircuitBreaker {
 
-    private static final Logger logger = LoggerFactory.getLogger(ToolCallCircuitBreaker.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ToolCallCircuitBreaker.class);
 
     private final CircuitBreakerRegistry registry;
     private final Map<String, CircuitBreaker> breakers;
@@ -52,7 +52,7 @@ public class ToolCallCircuitBreaker {
         // Register Prometheus metrics
         registerMetrics();
 
-        logger.info("Circuit breaker initialized: failureThreshold={}, timeout={}s",
+        LOGGER.info("Circuit breaker initialized: failureThreshold={}, timeout={}s",
                 config.failureThreshold(), config.timeoutSeconds());
     }
 
@@ -126,7 +126,7 @@ public class ToolCallCircuitBreaker {
                 .description("Total slow MCP tool calls across all circuit breakers")
                 .register(meterRegistry);
 
-        logger.info("MCP tool circuit breaker Prometheus metrics registered");
+        LOGGER.info("MCP tool circuit breaker Prometheus metrics registered");
     }
 
     /**
@@ -142,7 +142,9 @@ public class ToolCallCircuitBreaker {
      * Gets the average failure rate across all circuit breakers.
      */
     public double getAverageFailureRate() {
-        if (breakers.isEmpty()) return 0.0;
+        if (breakers.isEmpty()) {
+            return 0.0;
+        }
         return breakers.values().stream()
                 .mapToDouble(cb -> cb.getMetrics().getFailureRate())
                 .average()
@@ -153,7 +155,9 @@ public class ToolCallCircuitBreaker {
      * Gets the average slow call rate across all circuit breakers.
      */
     public double getAverageSlowCallRate() {
-        if (breakers.isEmpty()) return 0.0;
+        if (breakers.isEmpty()) {
+            return 0.0;
+        }
         return breakers.values().stream()
                 .mapToDouble(cb -> cb.getMetrics().getSlowCallRate())
                 .average()
@@ -198,7 +202,7 @@ public class ToolCallCircuitBreaker {
         String key = createKey(connectionId, toolName);
         return breakers.computeIfAbsent(key, k -> {
             CircuitBreaker breaker = registry.circuitBreaker(k);
-            
+
             // Add event listeners for logging and metrics
             breaker.getEventPublisher()
                     .onStateTransition(event -> {
@@ -209,18 +213,18 @@ public class ToolCallCircuitBreaker {
                                 .description("MCP tool circuit breaker state transitions")
                                 .register(meterRegistry)
                                 .increment();
-                        
-                        logger.info("Circuit breaker {} state transition: {} -> {}",
+
+                        LOGGER.info("Circuit breaker {} state transition: {} -> {}",
                                 k, event.getStateTransition().getFromState(),
                                 event.getStateTransition().getToState());
                     })
                     .onFailureRateExceeded(event ->
-                            logger.warn("Circuit breaker {} failure rate exceeded: {}%",
+                            LOGGER.warn("Circuit breaker {} failure rate exceeded: {}%",
                                     k, event.getFailureRate()))
                     .onSlowCallRateExceeded(event ->
-                            logger.warn("Circuit breaker {} slow call rate exceeded: {}%",
+                            LOGGER.warn("Circuit breaker {} slow call rate exceeded: {}%",
                                     k, event.getSlowCallRate()));
-            
+
             return breaker;
         });
     }
@@ -235,11 +239,11 @@ public class ToolCallCircuitBreaker {
     public boolean isToolAvailable(String connectionId, String toolName) {
         String key = createKey(connectionId, toolName);
         CircuitBreaker breaker = breakers.get(key);
-        
+
         if (breaker == null) {
             return true; // No breaker yet means tool is available
         }
-        
+
         return breaker.getState() != CircuitBreaker.State.OPEN;
     }
 
@@ -267,7 +271,7 @@ public class ToolCallCircuitBreaker {
         CircuitBreaker breaker = breakers.get(key);
         if (breaker != null) {
             breaker.reset();
-            logger.info("Circuit breaker {} reset", key);
+            LOGGER.info("Circuit breaker {} reset", key);
         }
     }
 
@@ -279,7 +283,7 @@ public class ToolCallCircuitBreaker {
     public void removeConnection(String connectionId) {
         String prefix = connectionId + ":";
         breakers.keySet().removeIf(key -> key.startsWith(prefix));
-        logger.debug("Removed circuit breakers for connection: {}", connectionId);
+        LOGGER.debug("Removed circuit breakers for connection: {}", connectionId);
     }
 
     /**
@@ -289,7 +293,7 @@ public class ToolCallCircuitBreaker {
      */
     public Map<String, CircuitBreakerMetrics> getAllMetrics() {
         Map<String, CircuitBreakerMetrics> metrics = new ConcurrentHashMap<>();
-        
+
         breakers.forEach((key, breaker) -> {
             CircuitBreaker.Metrics m = breaker.getMetrics();
             metrics.put(key, new CircuitBreakerMetrics(
@@ -301,7 +305,7 @@ public class ToolCallCircuitBreaker {
                     m.getNumberOfSlowCalls()
             ));
         });
-        
+
         return metrics;
     }
 

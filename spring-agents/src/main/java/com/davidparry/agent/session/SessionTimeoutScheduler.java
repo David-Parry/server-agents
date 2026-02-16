@@ -18,7 +18,7 @@ import java.util.List;
 @Component
 public class SessionTimeoutScheduler {
 
-    private static final Logger logger = LoggerFactory.getLogger(SessionTimeoutScheduler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SessionTimeoutScheduler.class);
 
     private final ConnectionManager connectionManager;
     private final McpProxyProperties properties;
@@ -67,7 +67,7 @@ public class SessionTimeoutScheduler {
         }
 
         if (!timeouts.isEmpty()) {
-            logger.info("Timed out {} sessions", timeouts.size());
+            LOGGER.info("Timed out {} sessions", timeouts.size());
         }
     }
 
@@ -84,9 +84,9 @@ public class SessionTimeoutScheduler {
         List<ClientConnection> idleConnections = new ArrayList<>();
 
         for (ClientConnection connection : connectionManager.getAllConnections()) {
-            if (connection.isActive() && 
-                !connection.hasActiveSessions() && 
-                connection.getIdleTimeMs() > idleTimeoutMs) {
+            if (connection.isActive()
+                && !connection.hasActiveSessions()
+                && connection.getIdleTimeMs() > idleTimeoutMs) {
                 idleConnections.add(connection);
             }
         }
@@ -97,7 +97,7 @@ public class SessionTimeoutScheduler {
         }
 
         if (!idleConnections.isEmpty()) {
-            logger.info("Closed {} idle connections", idleConnections.size());
+            LOGGER.info("Closed {} idle connections", idleConnections.size());
         }
     }
 
@@ -120,7 +120,7 @@ public class SessionTimeoutScheduler {
     }
 
     private void handleSessionTimeout(ClientConnection connection, PromptSession session) {
-        logger.warn("Session {} timed out on connection {} (client: {})",
+        LOGGER.warn("Session {} timed out on connection {} (client: {})",
                 session.getSessionId(),
                 connection.getConnectionId(),
                 connection.getClientId());
@@ -135,7 +135,7 @@ public class SessionTimeoutScheduler {
     }
 
     private void handleIdleConnection(ClientConnection connection) {
-        logger.info("Closing idle connection {} (client: {}, idle for {}ms)",
+        LOGGER.info("Closing idle connection {} (client: {}, idle for {}ms)",
                 connection.getConnectionId(),
                 connection.getClientId(),
                 connection.getIdleTimeMs());
@@ -149,7 +149,7 @@ public class SessionTimeoutScheduler {
                 connection.getWebSocketSession().close();
             }
         } catch (Exception e) {
-            logger.warn("Error closing WebSocket for connection {}: {}",
+            LOGGER.warn("Error closing WebSocket for connection {}: {}",
                     connection.getConnectionId(), e.getMessage());
         }
 
@@ -161,7 +161,7 @@ public class SessionTimeoutScheduler {
         session.getPendingCall("").ifPresent(call -> {
             // This is a placeholder - actual implementation would iterate all pending calls
         });
-        
+
         // The actual timeout handling is done in RemoteToolCallback via CompletableFuture timeout
     }
 
