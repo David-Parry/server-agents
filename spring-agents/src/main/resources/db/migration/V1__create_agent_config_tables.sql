@@ -96,6 +96,10 @@ CREATE TABLE agent_execution_config (
     id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     agent_config_id UUID NOT NULL,
     customer_id UUID,
+    -- Computed column for enforcing unique default configs per agent_config_id.
+    -- When customer_id IS NULL (default config), this equals agent_config_id.
+    -- When customer_id IS NOT NULL, this is NULL (doesn't participate in uniqueness).
+    default_config_key UUID GENERATED ALWAYS AS (CASE WHEN customer_id IS NULL THEN agent_config_id ELSE NULL END),
     max_tokens INT DEFAULT 4096,
     temperature DECIMAL(3,2) DEFAULT 0.70,
     timeout_seconds INT DEFAULT 300,
@@ -113,6 +117,10 @@ CREATE TABLE agent_execution_config (
 
 CREATE INDEX idx_exec_config_agent ON agent_execution_config(agent_config_id);
 CREATE INDEX idx_exec_config_customer ON agent_execution_config(customer_id);
+
+-- Unique index on computed column ensures only one default config per agent_config_id
+-- (NULL values in default_config_key don't violate uniqueness)
+CREATE UNIQUE INDEX idx_agent_exec_config_unique_default ON agent_execution_config(default_config_key);
 
 -- -----------------------------------------------------------------------------
 -- Part 6: Customer Agent Type Association Table

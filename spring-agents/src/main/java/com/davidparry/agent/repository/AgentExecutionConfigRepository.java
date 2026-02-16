@@ -21,6 +21,8 @@ public interface AgentExecutionConfigRepository extends JpaRepository<AgentExecu
 
     /**
      * Find the default execution config for an agent type (where customer is null).
+     * Returns at most one result due to the partial unique index on agent_config_id
+     * where customer_id IS NULL.
      */
     @Query("SELECT ec FROM AgentExecutionConfigEntity ec "
            + "WHERE ec.agentConfig.agentType = :agentType AND ec.customer IS NULL")
@@ -74,6 +76,8 @@ public interface AgentExecutionConfigRepository extends JpaRepository<AgentExecu
 
     /**
      * Find default execution config by agent config ID.
+     * Returns at most one result due to the partial unique index on agent_config_id
+     * where customer_id IS NULL.
      */
     @Query("SELECT ec FROM AgentExecutionConfigEntity ec "
            + "WHERE ec.agentConfig.id = :agentConfigId AND ec.customer IS NULL")

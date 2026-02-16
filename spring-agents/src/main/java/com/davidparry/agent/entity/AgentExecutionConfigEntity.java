@@ -23,6 +23,13 @@ import java.util.UUID;
  * This entity connects AgentConfigEntity (the agent definition) with CustomerEntity,
  * allowing customer-specific execution parameters. When customer_id is NULL, this
  * represents the default execution config for the agent type.
+ *
+ * <p>Uniqueness constraints:
+ * <ul>
+ *   <li>For customer-specific configs: (agent_config_id, customer_id) must be unique</li>
+ *   <li>For default configs: only one row per agent_config_id where customer_id IS NULL
+ *       (enforced via partial unique index idx_agent_exec_config_unique_default)</li>
+ * </ul>
  */
 @Entity
 @Table(name = "agent_execution_config",
@@ -47,6 +54,13 @@ public class AgentExecutionConfigEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")
     private CustomerEntity customer;
+
+    /**
+     * Computed column for enforcing unique default configs.
+     * Automatically set by the database - equals agent_config_id when customer is NULL.
+     */
+    @Column(name = "default_config_key", insertable = false, updatable = false)
+    private UUID defaultConfigKey;
 
     @Column(name = "max_tokens")
     private Integer maxTokens = 4096;
