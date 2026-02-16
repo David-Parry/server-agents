@@ -19,6 +19,4 @@
 /agent-message-protocol/.qodo/
 /logs/
 admin-client-spring-agents/.qodo
-admin-client-spring-agents/
-/package-lock.json
 /.idea/
