@@ -3,6 +3,7 @@ package com.davidparry.agent.repository;
 import com.davidparry.agent.entity.AgentExecutionConfigEntity;
 import com.davidparry.agent.protocol.dto.AgentType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -91,6 +92,7 @@ public interface AgentExecutionConfigRepository extends JpaRepository<AgentExecu
     /**
      * Delete customer-specific execution config.
      */
+    @Modifying
     @Query("DELETE FROM AgentExecutionConfigEntity ec "
            + "WHERE ec.agentConfig.agentType = :agentType AND ec.customer.customerId = :customerId")
     int deleteByAgentTypeAndCustomerId(

@@ -2,6 +2,7 @@ plugins {
     id("org.springframework.boot") version "3.5.8"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.github.spotbugs") version "6.4.8"
+    id("org.unbroken-dome.test-sets") version "4.1.0"
     java
     jacoco
     checkstyle
@@ -238,4 +239,12 @@ tasks.register<JavaExec>("runTokenHashGenerator") {
         project.findProperty("secretArg")?.toString() ?: "",
         project.findProperty("secretVersionArg")?.toString() ?: "V1"
     )
+}
+
+testSets {
+    create("integrationTest")
+}
+
+tasks.named<Test>("integrationTest") {
+    useJUnitPlatform()
 }

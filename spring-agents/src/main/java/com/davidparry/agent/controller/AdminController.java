@@ -59,6 +59,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -1120,7 +1121,7 @@ public class AdminController {
     @Transactional
     public ResponseEntity<CustomerAgentTypeResponse> assignAgentTypeToCustomer(
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
-            @RequestBody AssignAgentTypeRequest request) {
+            @Valid @RequestBody AssignAgentTypeRequest request) {
 
         Optional<CustomerEntity> customerOpt = customerRepository.findByCustomerId(customerId);
         if (customerOpt.isEmpty()) {
@@ -1263,7 +1264,7 @@ public class AdminController {
     @Transactional
     public ResponseEntity<CustomerAgentTypesResponse> bulkAssignAgentTypes(
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
-            @RequestBody BulkAssignAgentTypesRequest request) {
+            @Valid @RequestBody BulkAssignAgentTypesRequest request) {
 
         Optional<CustomerEntity> customerOpt = customerRepository.findByCustomerId(customerId);
         if (customerOpt.isEmpty()) {
