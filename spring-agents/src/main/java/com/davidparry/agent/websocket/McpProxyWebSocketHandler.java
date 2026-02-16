@@ -3,6 +3,7 @@ package com.davidparry.agent.websocket;
 import com.davidparry.agent.config.AgentConfiguration;
 import com.davidparry.agent.config.DatabaseAgentConfigurationProvider;
 import com.davidparry.agent.config.McpProxyProperties;
+import com.davidparry.agent.repository.CustomerAgentTypeRepository;
 import com.davidparry.agent.observability.CustomerMetricsService;
 import com.davidparry.agent.observability.ServerMetrics;
 import com.davidparry.agent.pojo.ExecutionResult;
@@ -47,6 +48,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -76,6 +78,7 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
     private final DatabaseAgentConfigurationProvider agentConfigurationProvider;
     private final CustomerMetricsService customerMetricsService;
     private final ServerMetrics serverMetrics;
+    private final CustomerAgentTypeRepository customerAgentTypeRepository;
 
     public McpProxyWebSocketHandler(ConnectionManager connectionManager, PromptExecutionService promptExecutionService,
                                     RemoteToolCallbackFactory toolCallbackFactory, McpProxyProperties properties,
@@ -83,7 +86,8 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
                                     TemplateProcessor templateProcessor, SchemaMerger schemaMerger,
                                     DatabaseAgentConfigurationProvider agentConfigurationProvider,
                                     CustomerMetricsService customerMetricsService,
-                                    ServerMetrics serverMetrics) {
+                                    ServerMetrics serverMetrics,
+                                    CustomerAgentTypeRepository customerAgentTypeRepository) {
         this.connectionManager = connectionManager;
         this.promptExecutionService = promptExecutionService;
         this.toolCallbackFactory = toolCallbackFactory;
@@ -94,6 +98,7 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
         this.agentConfigurationProvider = agentConfigurationProvider;
         this.customerMetricsService = customerMetricsService;
         this.serverMetrics = serverMetrics;
+        this.customerAgentTypeRepository = customerAgentTypeRepository;
 
         this.messagesReceivedCounter = Counter
                 .builder("mcp.messages.received")
@@ -292,6 +297,25 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
                 return;
             }
 
+            // Check if customer has access to the requested agent type
+            Agent agent = createSession.getAgent();
+            UUID customerId;
+            try {
+                customerId = UUID.fromString(connection.getClientId());
+            } catch (IllegalArgumentException e) {
+                LOGGER.error("Invalid customer ID format: {}", connection.getClientId());
+                sendError(connection.getWebSocketSession(), sessionId, ErrorCode.INTERNAL_ERROR,
+                          "Invalid customer ID format");
+                return;
+            }
+
+            if (!customerAgentTypeRepository.hasAccess(customerId, agent.type())) {
+                LOGGER.warn("Customer {} does not have access to agent type {}", customerId, agent.type());
+                sendError(connection.getWebSocketSession(), sessionId, ErrorCode.UNAUTHORIZED,
+                          "Customer does not have access to agent type: " + agent.type());
+                return;
+            }
+
             // Create tool callbacks for remote execution
             List<ToolCallback> toolCallbacks = new ArrayList<>();
             for (ToolDefinition toolDef : createSession.getTools()) {
@@ -302,7 +326,6 @@ public class McpProxyWebSocketHandler extends TextWebSocketHandler {
 
             // Create the session with stream chunk consumer
             // Get agent configuration (system prompt and model) based on agent type
-            Agent agent = createSession.getAgent();
             AgentConfiguration agentConfig = agentConfigurationProvider.getConfiguration(agent.type());
 
             String systemPrompt = agentConfig.systemPrompt();

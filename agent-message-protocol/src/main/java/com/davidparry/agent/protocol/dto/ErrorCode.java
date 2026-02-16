@@ -8,6 +8,7 @@ package com.davidparry.agent.protocol.dto;
 public enum ErrorCode {
     // Authentication & Authorization
     AUTHENTICATION_FAILED,
+    UNAUTHORIZED,
     RATE_LIMITED,
     CONNECTION_LIMIT_EXCEEDED,
     

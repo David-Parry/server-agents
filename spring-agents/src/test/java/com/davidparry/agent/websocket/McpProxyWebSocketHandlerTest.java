@@ -3,6 +3,7 @@ package com.davidparry.agent.websocket;
 import com.davidparry.agent.config.AgentConfiguration;
 import com.davidparry.agent.config.DatabaseAgentConfigurationProvider;
 import com.davidparry.agent.config.McpProxyProperties;
+import com.davidparry.agent.repository.CustomerAgentTypeRepository;
 import com.davidparry.agent.observability.CustomerMetricsService;
 import com.davidparry.agent.observability.ServerMetrics;
 import com.davidparry.agent.pojo.ExecutionResult;
@@ -38,6 +39,7 @@ import org.springframework.web.socket.WebSocketSession;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -73,6 +75,9 @@ class McpProxyWebSocketHandlerTest {
     @Mock
     private ServerMetrics serverMetrics;
 
+    @Mock
+    private CustomerAgentTypeRepository customerAgentTypeRepository;
+
     private McpProxyProperties properties;
     private ObjectMapper objectMapper;
     private SimpleMeterRegistry meterRegistry;
@@ -105,16 +110,19 @@ class McpProxyWebSocketHandlerTest {
                 schemaMerger,
                 agentConfigurationProvider,
                 customerMetricsService,
-                serverMetrics
+                serverMetrics,
+                customerAgentTypeRepository
         );
     }
+
+    private static final String TEST_CUSTOMER_ID = "550e8400-e29b-41d4-a716-446655440000";
 
     private WebSocketSession createMockWebSocketSession(String sessionId) {
         WebSocketSession session = mock(WebSocketSession.class);
         lenient().when(session.getId()).thenReturn(sessionId);
         lenient().when(session.isOpen()).thenReturn(true);
         Map<String, Object> attributes = new HashMap<>();
-        attributes.put(ApiKeyHandshakeInterceptor.CLIENT_ID_ATTRIBUTE, "test-client-001");
+        attributes.put(ApiKeyHandshakeInterceptor.CLIENT_ID_ATTRIBUTE, TEST_CUSTOMER_ID);
         lenient().when(session.getAttributes()).thenReturn(attributes);
         return session;
     }
@@ -122,7 +130,7 @@ class McpProxyWebSocketHandlerTest {
     private ClientConnection createMockClientConnection(WebSocketSession wsSession) {
         ClientConnection connection = mock(ClientConnection.class);
         lenient().when(connection.getConnectionId()).thenReturn("conn-123");
-        lenient().when(connection.getClientId()).thenReturn("test-client-001");
+        lenient().when(connection.getClientId()).thenReturn(TEST_CUSTOMER_ID);
         lenient().when(connection.getWebSocketSession()).thenReturn(wsSession);
         lenient().when(connection.canAcceptSession()).thenReturn(true);
         lenient().when(connection.addSession(any())).thenReturn(true);
@@ -132,7 +140,7 @@ class McpProxyWebSocketHandlerTest {
     private ClientConnection createRealClientConnection(WebSocketSession wsSession) {
         return ClientConnection.builder()
                 .connectionId("conn-123")
-                .clientId("test-client-001")
+                .clientId(TEST_CUSTOMER_ID)
                 .webSocketSession(wsSession)
                 .maxConcurrentSessions(10)
                 .build();
@@ -145,13 +153,13 @@ class McpProxyWebSocketHandlerTest {
         void sendsConnectionEstablishedMessage() throws Exception {
             WebSocketSession wsSession = createMockWebSocketSession("ws-123");
             ClientConnection connection = createRealClientConnection(wsSession);
-            when(connectionManager.createConnection(wsSession, "test-client-001")).thenReturn(connection);
+            when(connectionManager.createConnection(wsSession, TEST_CUSTOMER_ID)).thenReturn(connection);
 
             handler.afterConnectionEstablished(wsSession);
 
-            verify(connectionManager).createConnection(wsSession, "test-client-001");
+            verify(connectionManager).createConnection(wsSession, TEST_CUSTOMER_ID);
             verify(serverMetrics).recordConnectionOpened();
-            verify(customerMetricsService).recordConnectionOpened("test-client-001");
+            verify(customerMetricsService).recordConnectionOpened(TEST_CUSTOMER_ID);
 
             ArgumentCaptor<TextMessage> messageCaptor = ArgumentCaptor.forClass(TextMessage.class);
             verify(wsSession).sendMessage(messageCaptor.capture());
@@ -165,7 +173,7 @@ class McpProxyWebSocketHandlerTest {
         void includesCapabilitiesInConnectionEstablishedMessage() throws Exception {
             WebSocketSession wsSession = createMockWebSocketSession("ws-456");
             ClientConnection connection = createRealClientConnection(wsSession);
-            when(connectionManager.createConnection(wsSession, "test-client-001")).thenReturn(connection);
+            when(connectionManager.createConnection(wsSession, TEST_CUSTOMER_ID)).thenReturn(connection);
 
             handler.afterConnectionEstablished(wsSession);
 
@@ -228,6 +236,8 @@ class McpProxyWebSocketHandlerTest {
             TextMessage message = new TextMessage(json);
 
             when(connectionManager.findSession("sess-123")).thenReturn(Optional.empty());
+            when(customerAgentTypeRepository.hasAccess(UUID.fromString(TEST_CUSTOMER_ID), AgentType.ANALYST))
+                    .thenReturn(true);
             when(agentConfigurationProvider.getConfiguration(AgentType.ANALYST))
                     .thenReturn(new AgentConfiguration("System prompt", "claude-3"));
             when(templateProcessor.processTemplate(anyString(), any(JsonNode.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -246,10 +256,11 @@ class McpProxyWebSocketHandlerTest {
             handler.handleTextMessage(wsSession, message);
 
             verify(connectionManager).findSession("sess-123");
+            verify(customerAgentTypeRepository).hasAccess(UUID.fromString(TEST_CUSTOMER_ID), AgentType.ANALYST);
             verify(agentConfigurationProvider).getConfiguration(AgentType.ANALYST);
             verify(connectionManager).registerSession(any(PromptSession.class));
             verify(serverMetrics).recordSessionStarted();
-            verify(customerMetricsService).recordSessionCreated("test-client-001");
+            verify(customerMetricsService).recordSessionCreated(TEST_CUSTOMER_ID);
         }
 
         @Test
@@ -454,6 +465,89 @@ class McpProxyWebSocketHandlerTest {
         }
 
         @Test
+        void handleCreateSession_rejectsWhenCustomerHasNoAccessToAgentType() throws Exception {
+            Agent agent = new Agent(
+                    "test-agent",
+                    "Test agent description",
+                    AgentType.ANALYST,
+                    "Follow instructions",
+                    null, null,
+                    List.of(),
+                    "{}",
+                    null
+            );
+
+            CreateSession createSession = CreateSession.builder()
+                    .messageId("msg-123")
+                    .timestamp(Instant.now())
+                    .sessionId("sess-123")
+                    .agent(agent)
+                    .tools(List.of())
+                    .build();
+
+            String json = objectMapper.writeValueAsString(createSession);
+            TextMessage message = new TextMessage(json);
+
+            when(connectionManager.findSession("sess-123")).thenReturn(Optional.empty());
+            when(customerAgentTypeRepository.hasAccess(UUID.fromString(TEST_CUSTOMER_ID), AgentType.ANALYST))
+                    .thenReturn(false);
+
+            handler.handleTextMessage(wsSession, message);
+
+            ArgumentCaptor<TextMessage> messageCaptor = ArgumentCaptor.forClass(TextMessage.class);
+            verify(wsSession).sendMessage(messageCaptor.capture());
+
+            String payload = messageCaptor.getValue().getPayload();
+            assertTrue(payload.contains("error"));
+            assertTrue(payload.contains("UNAUTHORIZED"));
+            assertTrue(payload.contains("does not have access to agent type"));
+        }
+
+        @Test
+        void handleCreateSession_checksAccessForCorrectAgentType() throws Exception {
+            // Test that access is checked for the specific agent type requested
+            Agent engineerAgent = new Agent(
+                    "engineer-agent",
+                    "Engineer agent description",
+                    AgentType.ENGINEER,
+                    "Follow instructions",
+                    null, null,
+                    List.of(),
+                    "{}",
+                    null
+            );
+
+            CreateSession createSession = CreateSession.builder()
+                    .messageId("msg-123")
+                    .timestamp(Instant.now())
+                    .sessionId("sess-123")
+                    .agent(engineerAgent)
+                    .tools(List.of())
+                    .build();
+
+            String json = objectMapper.writeValueAsString(createSession);
+            TextMessage message = new TextMessage(json);
+
+            when(connectionManager.findSession("sess-123")).thenReturn(Optional.empty());
+            // Customer has access to ANALYST but not ENGINEER
+            when(customerAgentTypeRepository.hasAccess(UUID.fromString(TEST_CUSTOMER_ID), AgentType.ENGINEER))
+                    .thenReturn(false);
+
+            handler.handleTextMessage(wsSession, message);
+
+            // Verify access was checked for ENGINEER, not any other type
+            verify(customerAgentTypeRepository).hasAccess(UUID.fromString(TEST_CUSTOMER_ID), AgentType.ENGINEER);
+            verify(customerAgentTypeRepository, never()).hasAccess(any(), eq(AgentType.ANALYST));
+
+            ArgumentCaptor<TextMessage> messageCaptor = ArgumentCaptor.forClass(TextMessage.class);
+            verify(wsSession).sendMessage(messageCaptor.capture());
+
+            String payload = messageCaptor.getValue().getPayload();
+            assertTrue(payload.contains("UNAUTHORIZED"));
+            assertTrue(payload.contains("ENGINEER"));
+        }
+
+        @Test
         void handleToolCallResponse_withSuccessfulResult() throws Exception {
             ToolCallResponse response = ToolCallResponse.builder()
                     .messageId("msg-123")
@@ -590,7 +684,7 @@ class McpProxyWebSocketHandlerTest {
             verify(session).cancel("User requested cancellation");
             verify(connection).updateSession(cancelledSession);
             verify(serverMetrics).recordSessionCancelled();
-            verify(customerMetricsService).recordSessionCancelled("test-client-001");
+            verify(customerMetricsService).recordSessionCancelled(TEST_CUSTOMER_ID);
             verify(connection).removeSession("sess-123");
             verify(connectionManager).unregisterSession("sess-123");
 
@@ -741,7 +835,7 @@ class McpProxyWebSocketHandlerTest {
             handler.afterConnectionClosed(wsSession, CloseStatus.NORMAL);
 
             verify(serverMetrics).recordConnectionClosed();
-            verify(customerMetricsService).recordConnectionClosed("test-client-001");
+            verify(customerMetricsService).recordConnectionClosed(TEST_CUSTOMER_ID);
             verify(connectionManager).removeConnection("conn-123");
         }
 
