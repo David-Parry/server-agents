@@ -1,0 +1,77 @@
+plugins {
+    id "java-library"
+}
+
+group = "com.davidparry"
+version = "0.0.1-SNAPSHOT"
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+repositories {
+    mavenCentral()
+    maven { url "https://repo.spring.io/milestone" }
+    maven { url "https://repo.spring.io/snapshot" }
+}
+
+ext {
+    springAiVersion = "1.0.0-M6"
+    springBootVersion = "3.4.1"
+}
+
+dependencies {
+    // Shared message protocol library
+    api project(":agent-message-protocol")
+
+    // Spring framework (non-Boot) dependencies used by SDK classes
+    api "org.springframework:spring-websocket:6.2.1"
+    api "org.springframework:spring-webflux:6.2.1"
+
+    // Jakarta WebSocket API (for ContainerProvider, WebSocketContainer)
+    api "jakarta.websocket:jakarta.websocket-api:2.1.1"
+    api "jakarta.websocket:jakarta.websocket-client-api:2.1.1"
+
+    // Spring AI MCP Client - for managing STDIO, HTTP, and SSE-based MCP servers
+    api "org.springframework.ai:spring-ai-mcp:${springAiVersion}"
+
+    // MCP SDK - explicitly set to latest version to support completions capability
+    api "io.modelcontextprotocol.sdk:mcp:0.17.0"
+    api "io.modelcontextprotocol.sdk:mcp-core:0.17.0"
+    api "io.modelcontextprotocol.sdk:mcp-json:0.17.0"
+    api "io.modelcontextprotocol.sdk:mcp-json-jackson2:0.17.0"
+
+    // MCP WebFlux SSE transport for HTTP/SSE servers
+    api "io.modelcontextprotocol.sdk:mcp-spring-webflux:0.17.0"
+
+    api "com.fasterxml.jackson.core:jackson-databind:2.18.2"
+    api "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.2"
+    api "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.2"
+
+    api "io.github.resilience4j:resilience4j-circuitbreaker:2.2.0"
+    api "io.github.resilience4j:resilience4j-retry:2.2.0"
+
+    api "io.micrometer:micrometer-core:1.14.2"
+
+    implementation "ch.qos.logback:logback-classic:1.5.12"
+    implementation "org.slf4j:slf4j-api:2.0.16"
+
+    testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+    testImplementation "org.mockito:mockito-core:5.14.2"
+    testImplementation "org.mockito:mockito-junit-jupiter:5.14.2"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+}
+
+tasks.withType(JavaCompile) {
+    options.release = 21
+}
+
+// Ensure this produces a plain JAR, not a Spring Boot executable JAR
+jar {
+    enabled = true
+}

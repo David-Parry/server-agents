@@ -1,0 +1,130 @@
+### Agent Client HTTP Requests
+### Base URL for local development
+@baseUrl = http://localhost:8081
+
+###############################################################################
+# Agent Endpoints
+###############################################################################
+
+### List all available agents
+GET {{baseUrl}}/api/agents
+Accept: application/json
+
+###
+
+### Get agent status
+GET {{baseUrl}}/api/agents/status
+Accept: application/json
+
+###
+
+### Get agent statistics
+GET {{baseUrl}}/api/agents/statistics
+Accept: application/json
+
+###
+
+### Get details of the jira_agent
+GET {{baseUrl}}/api/agents/jira_agent
+Accept: application/json
+
+###
+
+### Get details of the failure_diagnostician agent
+GET {{baseUrl}}/api/agents/failure_diagnostician
+Accept: application/json
+
+###############################################################################
+# Activate Agents
+###############################################################################
+
+### Activate jira_agent with issueKey parameter
+POST {{baseUrl}}/api/agents/jira_agent/activate
+Content-Type: application/json
+
+{
+  "issueKey": "SCRUM-508",
+  "git_repo_uri": "https://github.com/David-Parry/vetpet-clinic-demo.git"
+}
+
+###
+
+####
+POST {{baseUrl}}/api/agents/jira_agent/activate
+Content-Type: application/json
+
+{
+  "issueKey": "SCRUM-487",
+  "git_repo_uri": "https://github.com/David-Parry/vetpet-clinic-demo.git"
+}
+
+####
+
+### Activate failure_diagnostician agent
+POST {{baseUrl}}/api/agents/failure_diagnostician/activate
+Content-Type: application/json
+
+{
+  "issueKey": "SCRUM-789",
+  "llmConversation": "Previous agent conversation content here..."
+}
+
+###
+
+###############################################################################
+# Session Management
+###############################################################################
+
+### List all active sessions
+GET {{baseUrl}}/api/agents/sessions
+Accept: application/json
+
+###
+
+### Get details of a specific session (replace {sessionId} with actual ID)
+GET {{baseUrl}}/api/agents/sessions/{sessionId}
+Accept: application/json
+
+###
+
+### Cancel a session (replace {sessionId} with actual ID)
+DELETE {{baseUrl}}/api/agents/sessions/{sessionId}
+Content-Type: application/json
+
+{
+  "reason": "Cancelled by user request"
+}
+
+###############################################################################
+# Configuration
+###############################################################################
+
+### Reload agent configurations
+POST {{baseUrl}}/api/agents/reload
+Accept: application/json
+
+###############################################################################
+# MCP Endpoints (for debugging)
+###############################################################################
+
+### Get MCP status
+GET {{baseUrl}}/api/mcp/status
+Accept: application/json
+
+###
+
+### Get MCP statistics
+GET {{baseUrl}}/api/mcp/statistics
+Accept: application/json
+
+###
+
+### List MCP servers
+GET {{baseUrl}}/api/mcp/servers
+Accept: application/json
+
+###
+
+### List MCP sessions
+GET {{baseUrl}}/api/mcp/sessions
+Accept: application/json

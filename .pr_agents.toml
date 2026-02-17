@@ -1,0 +1,17 @@
+[github_app]
+pr_commands = ["/agentic_describe",
+    "/agentic_review"]
+
+[best_practices]
+enable_global_best_practices = true
+organization_name = "davidparry"
+
+[pr_compliance]
+enable_global_pr_compliance = true
+
+[review_agent]
+comments_location_policy = "both"
+enabled = true
+publish_output = true
+enable_issues_agent = true
+enable_compliance_agent = true

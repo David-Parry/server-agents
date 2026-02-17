@@ -1,0 +1,49 @@
+plugins {
+    id "java"
+    id "org.springframework.boot" version "3.4.1"
+    id "io.spring.dependency-management" version "1.1.7"
+}
+
+group = "com.davidparry"
+version = "0.0.1-SNAPSHOT"
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url "https://repo.spring.io/milestone" }
+    maven { url "https://repo.spring.io/snapshot" }
+}
+
+dependencies {
+    // Agent SDK library
+    implementation project(":agent-sdk")
+
+    // Spring Boot starters (provide Spring context, auto-config, embedded server)
+    implementation "org.springframework.boot:spring-boot-starter-websocket"
+    implementation "org.springframework.boot:spring-boot-starter-validation"
+    implementation "org.springframework.boot:spring-boot-starter-actuator"
+    implementation "org.springframework.boot:spring-boot-starter-webflux"
+    annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
+
+    // Resilience4j Spring Boot integration (auto-config)
+    implementation "io.github.resilience4j:resilience4j-spring-boot3:2.2.0"
+
+    // Prometheus metrics endpoint
+    implementation "io.micrometer:micrometer-registry-prometheus"
+
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+}
+
+tasks.withType(JavaCompile) {
+    options.release = 21
+}
