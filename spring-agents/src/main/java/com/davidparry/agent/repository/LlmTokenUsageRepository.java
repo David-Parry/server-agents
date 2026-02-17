@@ -19,16 +19,16 @@ public interface LlmTokenUsageRepository extends JpaRepository<LlmTokenUsageEnti
      */
     @Modifying
     @Query(value = "INSERT INTO llm_token_usage (id, customer_id, model, agent_type, session_id, "
-            + "prompt_tokens, completion_tokens, total_tokens, tool_calls_count, created_at) "
+            + "input_tokens, output_tokens, total_tokens, tool_calls_count, created_at) "
             + "VALUES (RANDOM_UUID(), :customerId, :model, :agentType, :sessionId, "
-            + ":promptTokens, :completionTokens, :totalTokens, :toolCallsCount, CURRENT_TIMESTAMP)",
+            + ":inputTokens, :outputTokens, :totalTokens, :toolCallsCount, CURRENT_TIMESTAMP)",
             nativeQuery = true)
     void insertUsage(@Param("customerId") UUID customerId,
                      @Param("model") String model,
                      @Param("agentType") String agentType,
                      @Param("sessionId") String sessionId,
-                     @Param("promptTokens") int promptTokens,
-                     @Param("completionTokens") int completionTokens,
+                     @Param("inputTokens") int inputTokens,
+                     @Param("outputTokens") int outputTokens,
                      @Param("totalTokens") int totalTokens,
                      @Param("toolCallsCount") int toolCallsCount);
 
@@ -39,35 +39,40 @@ public interface LlmTokenUsageRepository extends JpaRepository<LlmTokenUsageEnti
      */
     @Modifying
     @Query(value = "INSERT INTO llm_token_usage (id, customer_id, model, agent_type, session_id, "
-            + "prompt_tokens, completion_tokens, total_tokens, tool_calls_count, created_at) "
+            + "input_tokens, output_tokens, total_tokens, tool_calls_count, created_at) "
             + "SELECT RANDOM_UUID(), c.id, :model, :agentType, :sessionId, "
-            + ":promptTokens, :completionTokens, :totalTokens, :toolCallsCount, CURRENT_TIMESTAMP "
+            + ":inputTokens, :outputTokens, :totalTokens, :toolCallsCount, CURRENT_TIMESTAMP "
             + "FROM customer c WHERE c.customer_id = :externalCustomerId",
             nativeQuery = true)
     int insertUsageByExternalId(@Param("externalCustomerId") UUID externalCustomerId,
                                 @Param("model") String model,
                                 @Param("agentType") String agentType,
                                 @Param("sessionId") String sessionId,
-                                @Param("promptTokens") int promptTokens,
-                                @Param("completionTokens") int completionTokens,
+                                @Param("inputTokens") int inputTokens,
+                                @Param("outputTokens") int outputTokens,
                                 @Param("totalTokens") int totalTokens,
                                 @Param("toolCallsCount") int toolCallsCount);
 
     /**
      * Monthly aggregation of token usage grouped by year, month, model, and agent type.
+     * Joins llm_model to include pricing data for cost calculations.
      */
     @Query(value = "SELECT EXTRACT(YEAR FROM u.created_at) AS yr, "
             + "EXTRACT(MONTH FROM u.created_at) AS mo, "
             + "u.model, "
             + "u.agent_type, "
-            + "SUM(u.prompt_tokens) AS sum_prompt, "
-            + "SUM(u.completion_tokens) AS sum_completion, "
+            + "SUM(u.input_tokens) AS sum_input, "
+            + "SUM(u.output_tokens) AS sum_output, "
             + "SUM(u.total_tokens) AS sum_total, "
             + "SUM(u.tool_calls_count) AS sum_tool_calls, "
-            + "COUNT(*) AS call_count "
+            + "COUNT(*) AS call_count, "
+            + "m.input_token_price_per_million, "
+            + "m.output_token_price_per_million "
             + "FROM llm_token_usage u "
+            + "JOIN llm_model m ON u.model = m.model "
             + "WHERE u.customer_id = :customerId AND u.created_at >= :since "
-            + "GROUP BY EXTRACT(YEAR FROM u.created_at), EXTRACT(MONTH FROM u.created_at), u.model, u.agent_type "
+            + "GROUP BY EXTRACT(YEAR FROM u.created_at), EXTRACT(MONTH FROM u.created_at), u.model, u.agent_type, "
+            + "m.input_token_price_per_million, m.output_token_price_per_million "
             + "ORDER BY yr DESC, mo DESC, u.model, u.agent_type",
             nativeQuery = true)
     List<Object[]> findMonthlyAggregation(@Param("customerId") UUID customerId,
@@ -75,19 +80,24 @@ public interface LlmTokenUsageRepository extends JpaRepository<LlmTokenUsageEnti
 
     /**
      * Monthly aggregation filtered by model.
+     * Joins llm_model to include pricing data for cost calculations.
      */
     @Query(value = "SELECT EXTRACT(YEAR FROM u.created_at) AS yr, "
             + "EXTRACT(MONTH FROM u.created_at) AS mo, "
             + "u.model, "
             + "u.agent_type, "
-            + "SUM(u.prompt_tokens) AS sum_prompt, "
-            + "SUM(u.completion_tokens) AS sum_completion, "
+            + "SUM(u.input_tokens) AS sum_input, "
+            + "SUM(u.output_tokens) AS sum_output, "
             + "SUM(u.total_tokens) AS sum_total, "
             + "SUM(u.tool_calls_count) AS sum_tool_calls, "
-            + "COUNT(*) AS call_count "
+            + "COUNT(*) AS call_count, "
+            + "m.input_token_price_per_million, "
+            + "m.output_token_price_per_million "
             + "FROM llm_token_usage u "
+            + "JOIN llm_model m ON u.model = m.model "
             + "WHERE u.customer_id = :customerId AND u.model = :model AND u.created_at >= :since "
-            + "GROUP BY EXTRACT(YEAR FROM u.created_at), EXTRACT(MONTH FROM u.created_at), u.model, u.agent_type "
+            + "GROUP BY EXTRACT(YEAR FROM u.created_at), EXTRACT(MONTH FROM u.created_at), u.model, u.agent_type, "
+            + "m.input_token_price_per_million, m.output_token_price_per_million "
             + "ORDER BY yr DESC, mo DESC, u.model, u.agent_type",
             nativeQuery = true)
     List<Object[]> findMonthlyAggregationByModel(@Param("customerId") UUID customerId,

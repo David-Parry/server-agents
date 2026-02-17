@@ -116,8 +116,9 @@ export default function CustomerDetailPage() {
         month: number;
         key: string;
         totalTokens: number;
-        promptTokens: number;
-        completionTokens: number;
+        inputTokens: number;
+        outputTokens: number;
+        estimatedTotalCost: number;
         totalCalls: number;
         totalToolCalls: number;
         rows: MonthlyTokenUsageResponse[];
@@ -129,8 +130,9 @@ export default function CustomerDetailPage() {
       const existing = monthMap.get(key);
       if (existing) {
         existing.totalTokens += row.totalTokens;
-        existing.promptTokens += row.promptTokens;
-        existing.completionTokens += row.completionTokens;
+        existing.inputTokens += row.inputTokens;
+        existing.outputTokens += row.outputTokens;
+        existing.estimatedTotalCost += row.estimatedTotalCost;
         existing.totalCalls += row.callCount;
         existing.totalToolCalls += row.toolCallsCount;
         existing.rows.push(row);
@@ -140,8 +142,9 @@ export default function CustomerDetailPage() {
           month: row.month,
           key,
           totalTokens: row.totalTokens,
-          promptTokens: row.promptTokens,
-          completionTokens: row.completionTokens,
+          inputTokens: row.inputTokens,
+          outputTokens: row.outputTokens,
+          estimatedTotalCost: row.estimatedTotalCost,
           totalCalls: row.callCount,
           totalToolCalls: row.toolCallsCount,
           rows: [row],
@@ -691,15 +694,21 @@ export default function CustomerDetailPage() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-400 uppercase">Prompt</p>
+                    <p className="text-xs text-gray-400 uppercase">Input</p>
                     <p className="text-lg font-semibold text-blue-400">
-                      {tokenUsageByMonth[0].promptTokens.toLocaleString()}
+                      {tokenUsageByMonth[0].inputTokens.toLocaleString()}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-400 uppercase">Completion</p>
+                    <p className="text-xs text-gray-400 uppercase">Output</p>
                     <p className="text-lg font-semibold text-green-400">
-                      {tokenUsageByMonth[0].completionTokens.toLocaleString()}
+                      {tokenUsageByMonth[0].outputTokens.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase">Est. Cost</p>
+                    <p className="text-lg font-semibold text-yellow-400">
+                      ${tokenUsageByMonth[0].estimatedTotalCost.toFixed(2)}
                     </p>
                   </div>
                   <div>
@@ -718,8 +727,9 @@ export default function CustomerDetailPage() {
                 <TableRow>
                   <TableHead>Month</TableHead>
                   <TableHead>Total Tokens</TableHead>
-                  <TableHead>Prompt</TableHead>
-                  <TableHead>Completion</TableHead>
+                  <TableHead>Input</TableHead>
+                  <TableHead>Output</TableHead>
+                  <TableHead>Est. Cost</TableHead>
                   <TableHead>Calls</TableHead>
                   <TableHead>Tool Calls</TableHead>
                 </TableRow>
@@ -749,8 +759,9 @@ export default function CustomerDetailPage() {
                       <TableCell className="text-white font-medium">
                         {month.totalTokens.toLocaleString()}
                       </TableCell>
-                      <TableCell>{month.promptTokens.toLocaleString()}</TableCell>
-                      <TableCell>{month.completionTokens.toLocaleString()}</TableCell>
+                      <TableCell>{month.inputTokens.toLocaleString()}</TableCell>
+                      <TableCell>{month.outputTokens.toLocaleString()}</TableCell>
+                      <TableCell className="text-yellow-400">${month.estimatedTotalCost.toFixed(2)}</TableCell>
                       <TableCell>{month.totalCalls.toLocaleString()}</TableCell>
                       <TableCell>{month.totalToolCalls.toLocaleString()}</TableCell>
                     </TableRow>
@@ -770,8 +781,9 @@ export default function CustomerDetailPage() {
                             </div>
                           </TableCell>
                           <TableCell>{row.totalTokens.toLocaleString()}</TableCell>
-                          <TableCell>{row.promptTokens.toLocaleString()}</TableCell>
-                          <TableCell>{row.completionTokens.toLocaleString()}</TableCell>
+                          <TableCell>{row.inputTokens.toLocaleString()}</TableCell>
+                          <TableCell>{row.outputTokens.toLocaleString()}</TableCell>
+                          <TableCell className="text-yellow-400">${row.estimatedTotalCost.toFixed(2)}</TableCell>
                           <TableCell>{row.callCount.toLocaleString()}</TableCell>
                           <TableCell>{row.toolCallsCount.toLocaleString()}</TableCell>
                         </TableRow>

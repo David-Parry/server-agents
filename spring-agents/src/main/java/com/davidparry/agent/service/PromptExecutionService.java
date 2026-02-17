@@ -170,7 +170,7 @@ public class PromptExecutionService {
                     .getSession(session.getSessionId())
                     .orElse(currentSession.get());
             llmTokenUsageService.recordUsage(customerId, model, session.getAgentType(),
-                    session.getSessionId(), llmResponse.promptTokens(), llmResponse.completionTokens(),
+                    session.getSessionId(), llmResponse.inputTokens(), llmResponse.outputTokens(),
                     llmResponse.totalTokens(), sessionForUsage.getToolCallCount());
 
             // CRITICAL: Get the latest session from the connection to pick up toolCallCount
@@ -285,7 +285,7 @@ public class PromptExecutionService {
 
         // Extract token counts from metadata
         int[] tokenCounts = extractTokenCounts(chatResponse);
-        LOGGER.debug("Blocking execution completed: promptTokens={}, completionTokens={}, totalTokens={}, success={}",
+        LOGGER.debug("Blocking execution completed: inputTokens={}, outputTokens={}, totalTokens={}, success={}",
                 tokenCounts[0], tokenCounts[1], tokenCounts[2], success);
         LOGGER.trace("!!!!!!! the result after being parsed is \n{}", result);
         return new LlmResponse(result, tokenCounts[0], tokenCounts[1], tokenCounts[2], success);
@@ -348,7 +348,7 @@ public class PromptExecutionService {
 
         // Extract token counts from the last response (usually contains aggregated usage)
         int[] tokenCounts = extractTokenCounts(lastChatResponse.get());
-        LOGGER.debug("Streaming execution completed: promptTokens={}, completionTokens={}, totalTokens={}",
+        LOGGER.debug("Streaming execution completed: inputTokens={}, outputTokens={}, totalTokens={}",
                 tokenCounts[0], tokenCounts[1], tokenCounts[2]);
 
         return convertToLlmResponse(fullResponse.toString(), converter, lastChatResponse.get());
@@ -358,7 +358,7 @@ public class PromptExecutionService {
      * Extracts prompt, completion, and total token counts from a ChatResponse.
      *
      * @param chatResponse the response from the LLM
-     * @return int array of [promptTokens, completionTokens, totalTokens]
+     * @return int array of [inputTokens, outputTokens, totalTokens]
      */
     private int[] extractTokenCounts(ChatResponse chatResponse) {
         if (chatResponse == null) {

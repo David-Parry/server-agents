@@ -377,9 +377,14 @@ export interface MonthlyTokenUsageResponse {
   month: number;
   model: string;
   agentType: string;
-  promptTokens: number;
-  completionTokens: number;
+  inputTokens: number;
+  outputTokens: number;
   totalTokens: number;
   toolCallsCount: number;
   callCount: number;
+  inputTokenPricePerMillion: number;
+  outputTokenPricePerMillion: number;
+  estimatedInputCost: number;
+  estimatedOutputCost: number;
+  estimatedTotalCost: number;
 }

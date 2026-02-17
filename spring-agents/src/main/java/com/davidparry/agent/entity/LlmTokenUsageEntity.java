@@ -15,7 +15,7 @@ import java.util.UUID;
 
 /**
  * Append-only JPA entity recording per-call LLM token usage.
- * Each row represents a single LLM invocation with prompt/completion/total token breakdown.
+ * Each row represents a single LLM invocation with input/output/total token breakdown.
  */
 @Entity
 @Table(name = "llm_token_usage")
@@ -39,11 +39,11 @@ public class LlmTokenUsageEntity {
     @Column(name = "session_id", length = 255)
     private String sessionId;
 
-    @Column(name = "prompt_tokens", nullable = false)
-    private int promptTokens;
+    @Column(name = "input_tokens", nullable = false)
+    private int inputTokens;
 
-    @Column(name = "completion_tokens", nullable = false)
-    private int completionTokens;
+    @Column(name = "output_tokens", nullable = false)
+    private int outputTokens;
 
     @Column(name = "total_tokens", nullable = false)
     private int totalTokens;
@@ -97,20 +97,20 @@ public class LlmTokenUsageEntity {
         this.sessionId = sessionId;
     }
 
-    public int getPromptTokens() {
-        return promptTokens;
+    public int getInputTokens() {
+        return inputTokens;
     }
 
-    public void setPromptTokens(int promptTokens) {
-        this.promptTokens = promptTokens;
+    public void setInputTokens(int inputTokens) {
+        this.inputTokens = inputTokens;
     }
 
-    public int getCompletionTokens() {
-        return completionTokens;
+    public int getOutputTokens() {
+        return outputTokens;
     }
 
-    public void setCompletionTokens(int completionTokens) {
-        this.completionTokens = completionTokens;
+    public void setOutputTokens(int outputTokens) {
+        this.outputTokens = outputTokens;
     }
 
     public int getTotalTokens() {
