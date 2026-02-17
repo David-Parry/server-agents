@@ -306,7 +306,7 @@ public class AdminController {
 
     @Operation(
         summary = "Update model",
-        description = "Updates a model's display name, description, default tokens for new customers, or enabled status."
+        description = "Updates a model's display name, description, default tokens for new customers, token pricing, or enabled status."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Model successfully updated"),
@@ -333,6 +333,12 @@ public class AdminController {
                 }
                 if (request.enabled() != null) {
                     llmModel.setEnabled(request.enabled());
+                }
+                if (request.inputTokenPricePerMillion() != null) {
+                    llmModel.setInputTokenPricePerMillion(request.inputTokenPricePerMillion());
+                }
+                if (request.outputTokenPricePerMillion() != null) {
+                    llmModel.setOutputTokenPricePerMillion(request.outputTokenPricePerMillion());
                 }
 
                 llmModel = modelRepository.save(llmModel);
@@ -1505,6 +1511,8 @@ public class AdminController {
             model.getDisplayName(),
             model.getDescription(),
             model.getDefaultTokensForNewCustomers(),
+            model.getInputTokenPricePerMillion(),
+            model.getOutputTokenPricePerMillion(),
             model.isEnabled(),
             model.getCreatedAt(),
             model.getUpdatedAt()

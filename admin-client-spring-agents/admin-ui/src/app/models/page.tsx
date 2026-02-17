@@ -39,6 +39,8 @@ export default function ModelsPage() {
     displayName: '',
     description: '',
     defaultTokensForNewCustomers: undefined,
+    inputTokenPricePerMillion: undefined,
+    outputTokenPricePerMillion: undefined,
   });
 
   const [editModel, setEditModel] = useState<UpdateModelRequest>({
@@ -46,6 +48,8 @@ export default function ModelsPage() {
     description: '',
     defaultTokensForNewCustomers: undefined,
     enabled: true,
+    inputTokenPricePerMillion: undefined,
+    outputTokenPricePerMillion: undefined,
   });
 
   const { data: models, isLoading } = useQuery({
@@ -70,6 +74,8 @@ export default function ModelsPage() {
         displayName: '',
         description: '',
         defaultTokensForNewCustomers: undefined,
+        inputTokenPricePerMillion: undefined,
+        outputTokenPricePerMillion: undefined,
       });
     },
   });
@@ -131,6 +137,8 @@ export default function ModelsPage() {
       description: model.description || '',
       defaultTokensForNewCustomers: model.defaultTokensForNewCustomers,
       enabled: model.enabled,
+      inputTokenPricePerMillion: model.inputTokenPricePerMillion,
+      outputTokenPricePerMillion: model.outputTokenPricePerMillion,
     });
     setShowEditModal(true);
   };
@@ -172,6 +180,8 @@ export default function ModelsPage() {
                 <TableHead>Model</TableHead>
                 <TableHead>Provider</TableHead>
                 <TableHead>Default Tokens</TableHead>
+                <TableHead>Input Price/M</TableHead>
+                <TableHead>Output Price/M</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Actions</TableHead>
@@ -198,6 +208,16 @@ export default function ModelsPage() {
                     {model.defaultTokensForNewCustomers
                       ? model.defaultTokensForNewCustomers.toLocaleString()
                       : 'Unlimited'}
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-gray-300">
+                      ${model.inputTokenPricePerMillion?.toFixed(2) ?? '0.00'}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-gray-300">
+                      ${model.outputTokenPricePerMillion?.toFixed(2) ?? '0.00'}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <Badge variant={model.enabled ? 'success' : 'danger'}>
@@ -334,6 +354,35 @@ export default function ModelsPage() {
             }
           />
 
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Input Token Price / Million"
+              type="number"
+              step="0.01"
+              placeholder="e.g., 3.00"
+              value={newModel.inputTokenPricePerMillion ?? ''}
+              onChange={(e) =>
+                setNewModel({
+                  ...newModel,
+                  inputTokenPricePerMillion: parseFloat(e.target.value) || undefined,
+                })
+              }
+            />
+            <Input
+              label="Output Token Price / Million"
+              type="number"
+              step="0.01"
+              placeholder="e.g., 15.00"
+              value={newModel.outputTokenPricePerMillion ?? ''}
+              onChange={(e) =>
+                setNewModel({
+                  ...newModel,
+                  outputTokenPricePerMillion: parseFloat(e.target.value) || undefined,
+                })
+              }
+            />
+          </div>
+
           <div className="flex justify-end gap-3 pt-4">
             <Button
               type="button"
@@ -386,6 +435,35 @@ export default function ModelsPage() {
               })
             }
           />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Input Token Price / Million"
+              type="number"
+              step="0.01"
+              placeholder="e.g., 3.00"
+              value={editModel.inputTokenPricePerMillion ?? ''}
+              onChange={(e) =>
+                setEditModel({
+                  ...editModel,
+                  inputTokenPricePerMillion: parseFloat(e.target.value) || undefined,
+                })
+              }
+            />
+            <Input
+              label="Output Token Price / Million"
+              type="number"
+              step="0.01"
+              placeholder="e.g., 15.00"
+              value={editModel.outputTokenPricePerMillion ?? ''}
+              onChange={(e) =>
+                setEditModel({
+                  ...editModel,
+                  outputTokenPricePerMillion: parseFloat(e.target.value) || undefined,
+                })
+              }
+            />
+          </div>
 
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-300">Enabled</span>

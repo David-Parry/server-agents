@@ -1,5 +1,6 @@
 package com.davidparry.agent.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -11,6 +12,8 @@ public record ModelResponse(
     String displayName,
     String description,
     Long defaultTokensForNewCustomers,
+    BigDecimal inputTokenPricePerMillion,
+    BigDecimal outputTokenPricePerMillion,
     boolean enabled,
     LocalDateTime createdAt,
     LocalDateTime updatedAt

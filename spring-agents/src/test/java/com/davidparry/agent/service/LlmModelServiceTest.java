@@ -69,7 +69,7 @@ class LlmModelServiceTest {
         when(allowanceRepository.save(any(CustomerModelAllowanceEntity.class))).thenAnswer(i -> i.getArgument(0));
 
         // When
-        LlmModelEntity result = service.createModel(model, provider, displayName, description, defaultTokens);
+        LlmModelEntity result = service.createModel(model, provider, displayName, description, defaultTokens, null, null);
 
         // Then
         assertEquals(model, result.getModel());
@@ -91,7 +91,7 @@ class LlmModelServiceTest {
 
         // When/Then
         assertThrows(IllegalArgumentException.class, () ->
-                service.createModel(model, "anthropic", "Claude", "desc", 100000L));
+                service.createModel(model, "anthropic", "Claude", "desc", 100000L, null, null));
     }
 
     @Test
@@ -104,7 +104,7 @@ class LlmModelServiceTest {
         when(customerRepository.findAll()).thenReturn(List.of());
 
         // When
-        LlmModelEntity result = service.createModel(model, "anthropic", "Claude", "desc", null);
+        LlmModelEntity result = service.createModel(model, "anthropic", "Claude", "desc", null, null, null);
 
         // Then
         assertEquals(0L, result.getDefaultTokensForNewCustomers());

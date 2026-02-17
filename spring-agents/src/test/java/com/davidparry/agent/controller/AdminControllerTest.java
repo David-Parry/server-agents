@@ -257,7 +257,7 @@ class AdminControllerTest {
         when(modelRepository.save(any(LlmModelEntity.class))).thenReturn(model);
 
         UpdateModelRequest request = new UpdateModelRequest(
-            "New Display Name", "New description", 50000L, null);
+            "New Display Name", "New description", 50000L, null, null, null);
 
         // When
         ResponseEntity<ModelResponse> response = controller.updateModel(modelId, request);
@@ -278,7 +278,7 @@ class AdminControllerTest {
 
         // When
         ResponseEntity<ModelResponse> response = 
-            controller.updateModel("unknown", new UpdateModelRequest(null, null, null, null));
+            controller.updateModel("unknown", new UpdateModelRequest(null, null, null, null, null, null));
 
         // Then
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());

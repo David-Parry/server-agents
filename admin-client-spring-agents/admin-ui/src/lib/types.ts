@@ -6,6 +6,8 @@ export interface ModelResponse {
   displayName?: string;
   description?: string;
   defaultTokensForNewCustomers?: number;
+  inputTokenPricePerMillion?: number;
+  outputTokenPricePerMillion?: number;
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -225,6 +227,8 @@ export interface CreateModelRequest {
   displayName?: string;
   description?: string;
   defaultTokensForNewCustomers?: number;
+  inputTokenPricePerMillion?: number;
+  outputTokenPricePerMillion?: number;
 }
 
 export interface UpdateModelRequest {
@@ -232,6 +236,8 @@ export interface UpdateModelRequest {
   description?: string;
   defaultTokensForNewCustomers?: number;
   enabled?: boolean;
+  inputTokenPricePerMillion?: number;
+  outputTokenPricePerMillion?: number;
 }
 
 export interface CreatePolicyTypeRequest {
