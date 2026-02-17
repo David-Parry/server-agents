@@ -1,9 +1,12 @@
 plugins {
     id "java-library"
+    id "maven-publish"
+    id "org.jreleaser" version "1.21.0"
 }
 
-group = "com.davidparry"
-version = "0.0.1-SNAPSHOT"
+
+group = project.findProperty("group") ?: "com.davidparry.agent"
+version = project.findProperty("version") ?: "3.0.0"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
@@ -74,4 +77,55 @@ tasks.withType(JavaCompile) {
 // Ensure this produces a plain JAR, not a Spring Boot executable JAR
 jar {
     enabled = true
+}
+
+
+// Publishing configuration
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+
+            it.groupId = project.findProperty("group") ?: "com.davidparry.agent"
+            it.version = project.findProperty("version") ?: "3.0.0"
+
+
+            pom {
+                name = "Qodo Agent SDK Core"
+                description = "Core framework for Qodo Agent SDK - Spring Boot based AI agent orchestration"
+                url = "https://github.com/David-Parry/server-agents"
+
+                licenses {
+                    license {
+                        name = "Licensed under the Apache License, Version 2.0"
+                        url = "https://www.apache.org/licenses/LICENSE-2.0"
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = "davidparry"
+                        name = "David Parry"
+                        email = "d.dry.parry@gmail.com"
+                    }
+                }
+
+                scm {
+                    connection = "scm:git:git://github.com/David-Parry/spring-command-sdk.git"
+                    developerConnection = "scm:git:ssh://github.com/David-Parry/spring-command-sdk.git"
+                    url = "https://github.com/David-Parry/spring-command-sdk"
+                }
+            }
+        }
+    }
+
+    repositories {
+        mavenLocal()
+        maven {
+            url = layout.buildDirectory.dir("staging-deploy")
+        }
+
+
+
+    }
 }
