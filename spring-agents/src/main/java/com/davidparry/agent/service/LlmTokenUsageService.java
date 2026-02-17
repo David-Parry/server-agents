@@ -55,15 +55,13 @@ public class LlmTokenUsageService {
     public void recordUsage(UUID externalCustomerId, String model, String agentType, String sessionId,
                             int promptTokens, int completionTokens, int totalTokens, int toolCallsCount) {
         try {
-            Optional<CustomerEntity> customerOpt = customerRepository.findByCustomerId(externalCustomerId);
-            if (customerOpt.isEmpty()) {
+            int rowsInserted = tokenUsageRepository.insertUsageByExternalId(externalCustomerId, model,
+                    agentType, sessionId, promptTokens, completionTokens, totalTokens, toolCallsCount);
+
+            if (rowsInserted == 0) {
                 LOGGER.warn("Cannot record token usage: customer not found for external ID {}", externalCustomerId);
                 return;
             }
-
-            UUID internalCustomerId = customerOpt.get().getId();
-            tokenUsageRepository.insertUsage(internalCustomerId, model, agentType, sessionId,
-                    promptTokens, completionTokens, totalTokens, toolCallsCount);
 
             LOGGER.debug("Recorded token usage: customer={}, model={}, agent={}, total={}",
                     externalCustomerId, model, agentType, totalTokens);

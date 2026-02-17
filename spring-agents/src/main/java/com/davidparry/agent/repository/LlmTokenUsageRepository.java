@@ -33,6 +33,27 @@ public interface LlmTokenUsageRepository extends JpaRepository<LlmTokenUsageEnti
                      @Param("toolCallsCount") int toolCallsCount);
 
     /**
+     * Single-statement INSERT that resolves the external customer UUID to the internal ID
+     * inline, avoiding a separate lookup query on the hot path. Returns the number of
+     * rows inserted (0 if the customer does not exist, 1 on success).
+     */
+    @Modifying
+    @Query(value = "INSERT INTO llm_token_usage (id, customer_id, model, agent_type, session_id, "
+            + "prompt_tokens, completion_tokens, total_tokens, tool_calls_count, created_at) "
+            + "SELECT RANDOM_UUID(), c.id, :model, :agentType, :sessionId, "
+            + ":promptTokens, :completionTokens, :totalTokens, :toolCallsCount, CURRENT_TIMESTAMP "
+            + "FROM customer c WHERE c.customer_id = :externalCustomerId",
+            nativeQuery = true)
+    int insertUsageByExternalId(@Param("externalCustomerId") UUID externalCustomerId,
+                                @Param("model") String model,
+                                @Param("agentType") String agentType,
+                                @Param("sessionId") String sessionId,
+                                @Param("promptTokens") int promptTokens,
+                                @Param("completionTokens") int completionTokens,
+                                @Param("totalTokens") int totalTokens,
+                                @Param("toolCallsCount") int toolCallsCount);
+
+    /**
      * Monthly aggregation of token usage grouped by year, month, model, and agent type.
      */
     @Query(value = "SELECT EXTRACT(YEAR FROM u.created_at) AS yr, "
