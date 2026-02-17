@@ -7,10 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
-
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,7 +29,6 @@ import java.util.concurrent.*;
  * is activated. Each agent can define its own MCP servers, which are started when the
  * session is created and stopped when the session ends.
  */
-@Component
 public class McpServerManager {
 
     private static final Logger logger = LoggerFactory.getLogger(McpServerManager.class);
@@ -74,7 +69,6 @@ public class McpServerManager {
         return System.getProperty("user.dir");
     }
 
-    @PostConstruct
     public void init() {
         logger.info("Initializing MCP Server Manager (session-based architecture)");
 
@@ -118,7 +112,6 @@ public class McpServerManager {
         logger.info("Sandbox base path validated: {}", sandboxBasePath);
     }
 
-    @PreDestroy
     public void shutdown() {
         logger.info("Shutting down MCP Server Manager and all session managers...");
 

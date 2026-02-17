@@ -1,14 +1,12 @@
 package com.davidparry.agent.sdk.observability;
 
 import io.micrometer.core.instrument.*;
-import org.springframework.stereotype.Component;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Metrics collection for the Agent Client.
  */
-@Component
 public class ClientMetrics {
     
     private final MeterRegistry registry;

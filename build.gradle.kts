@@ -5,6 +5,7 @@ plugins {
 // Shared configuration for all subprojects
 subprojects {
     repositories {
+        mavenLocal()
         mavenCentral()
     }
 }

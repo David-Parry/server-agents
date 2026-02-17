@@ -9,15 +9,8 @@ import com.davidparry.agent.protocol.*;
 import com.davidparry.agent.protocol.dto.ChunkType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.SpringApplication;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.stereotype.Component;
 import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.WebSocketContainer;
 import org.springframework.web.socket.CloseStatus;
@@ -45,7 +38,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * ensuring that sessions created via any path (WebSocketClientHandler)
  * are accessible for tool execution.
  */
-@Component
 public class WebSocketClientHandler extends TextWebSocketHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketClientHandler.class);
@@ -55,26 +47,26 @@ public class WebSocketClientHandler extends TextWebSocketHandler {
     private final ObjectMapper objectMapper;
     private final McpServerManager mcpServerManager;
     private final ClientMetrics metrics;
-    private final ApplicationContext applicationContext;
     private final AtomicReference<ConnectionState> state = new AtomicReference<>(ConnectionState.DISCONNECTED);
     private final AtomicReference<WebSocketSession> sessionRef = new AtomicReference<>();
     private final AtomicReference<String> connectionIdRef = new AtomicReference<>();
     private final AtomicLong heartbeatSequence = new AtomicLong(0);
     private final AtomicReference<Instant> lastActivityRef = new AtomicReference<>(Instant.now());
-    
+
     // Outbound message queue for thread-safe WebSocket writes
     // Messages are queued here and processed by a single virtual thread to prevent concurrent write conflicts
     private final BlockingQueue<McpProxyMessage> outboundQueue = new LinkedBlockingQueue<>(1000);
-    
+
     // Virtual thread for processing outbound messages - ensures sequential writes to WebSocket
     private volatile Thread messageSenderThread;
-    
+
     // Flag to control the message sender loop
     private volatile boolean messageSenderRunning = true;
-    
-    // Lazy injection to avoid circular dependency (AgentApplicationContext depends on WebSocketClientHandler)
-    @Lazy
-    @Autowired
+
+    // Configurable shutdown hook, called when max reconnection attempts are exhausted
+    private Runnable onFatalConnectionFailure;
+
+    // Set via setter to avoid circular dependency
     private AgentApplicationContext agentApplicationContext;
     private ScheduledExecutorService scheduler;
     private ScheduledFuture<?> heartbeatTask;
@@ -82,27 +74,44 @@ public class WebSocketClientHandler extends TextWebSocketHandler {
     private int reconnectAttempts = 0;
 
     public WebSocketClientHandler(AgentSdkProperties properties, ObjectMapper objectMapper,
-                                  McpServerManager mcpServerManager, ClientMetrics metrics,
-                                  ApplicationContext applicationContext) {
+                                  McpServerManager mcpServerManager, ClientMetrics metrics) {
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.mcpServerManager = mcpServerManager;
         this.metrics = metrics;
-        this.applicationContext = applicationContext;
     }
 
-    @PostConstruct
+    /**
+     * Sets the AgentApplicationContext. Must be called before init().
+     * This replaces the previous @Lazy @Autowired injection to break the circular dependency.
+     *
+     * @param agentApplicationContext the agent application context
+     */
+    public void setAgentApplicationContext(AgentApplicationContext agentApplicationContext) {
+        this.agentApplicationContext = agentApplicationContext;
+    }
+
+    /**
+     * Sets the callback to be invoked when a fatal connection failure occurs
+     * (e.g., max reconnection attempts exhausted).
+     *
+     * @param onFatalConnectionFailure the shutdown hook
+     */
+    public void setOnFatalConnectionFailure(Runnable onFatalConnectionFailure) {
+        this.onFatalConnectionFailure = onFatalConnectionFailure;
+    }
+
     public void init() {
         this.scheduler = Executors.newScheduledThreadPool(2, r -> {
             Thread t = new Thread(r, "ws-client-scheduler");
             t.setDaemon(true);
             return t;
         });
-        
+
         // Start virtual thread for sequential message sending
         // This prevents concurrent WebSocket write conflicts (TEXT_PARTIAL_WRITING errors)
         startMessageSender();
-        
+
         connect();
     }
 
@@ -127,7 +136,7 @@ public class WebSocketClientHandler extends TextWebSocketHandler {
      */
     private void processOutboundMessages() {
         logger.debug("Message sender loop started");
-        
+
         while (messageSenderRunning && !Thread.currentThread().isInterrupted()) {
             try {
                 // Block efficiently on virtual thread until a message is available
@@ -142,7 +151,7 @@ public class WebSocketClientHandler extends TextWebSocketHandler {
                 logger.error("Error processing outbound message", e);
             }
         }
-        
+
         logger.info("Message sender loop stopped");
     }
 
@@ -160,7 +169,7 @@ public class WebSocketClientHandler extends TextWebSocketHandler {
 
         int maxRetries = 3;
         long initialDelayMs = 50;
-        
+
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 String json = objectMapper.writeValueAsString(message);
@@ -170,7 +179,7 @@ public class WebSocketClientHandler extends TextWebSocketHandler {
             } catch (IllegalStateException e) {
                 // WebSocket state conflict (e.g., TEXT_PARTIAL_WRITING) - retry
                 if (attempt < maxRetries) {
-                    logger.warn("WebSocket write conflict, retrying ({}/{}): {}", 
+                    logger.warn("WebSocket write conflict, retrying ({}/{}): {}",
                         attempt, maxRetries, message.getClass().getSimpleName());
                     try {
                         // Virtual thread - sleep is efficient, yields carrier thread
@@ -181,7 +190,7 @@ public class WebSocketClientHandler extends TextWebSocketHandler {
                         return;
                     }
                 } else {
-                    logger.error("Failed to send message after {} attempts: {}", 
+                    logger.error("Failed to send message after {} attempts: {}",
                         maxRetries, message.getClass().getSimpleName(), e);
                 }
             } catch (IOException e) {
@@ -191,14 +200,13 @@ public class WebSocketClientHandler extends TextWebSocketHandler {
         }
     }
 
-    @PreDestroy
     public void shutdown() {
         logger.info("Shutting down WebSocket client...");
         state.set(ConnectionState.DRAINING);
 
         // Stop accepting new messages and signal the message sender to stop
         messageSenderRunning = false;
-        
+
         // Interrupt the virtual thread message sender
         if (messageSenderThread != null) {
             messageSenderThread.interrupt();
@@ -212,8 +220,6 @@ public class WebSocketClientHandler extends TextWebSocketHandler {
             reconnectTask.cancel(false);
         }
 
-        // Note: Session MCP managers are cleaned up by McpServerManager's @PreDestroy
-
         WebSocketSession session = sessionRef.get();
         if (session != null && session.isOpen()) {
             try {
@@ -223,22 +229,24 @@ public class WebSocketClientHandler extends TextWebSocketHandler {
             }
         }
 
-        scheduler.shutdown();
-        try {
-            if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+        if (scheduler != null) {
+            scheduler.shutdown();
+            try {
+                if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                    scheduler.shutdownNow();
+                }
+            } catch (InterruptedException e) {
                 scheduler.shutdownNow();
+                Thread.currentThread().interrupt();
             }
-        } catch (InterruptedException e) {
-            scheduler.shutdownNow();
-            Thread.currentThread().interrupt();
         }
-        
+
         // Log any remaining messages in the queue
         int remainingMessages = outboundQueue.size();
         if (remainingMessages > 0) {
             logger.warn("Shutdown with {} messages remaining in outbound queue", remainingMessages);
         }
-        
+
         logger.info("WebSocket client shutdown complete");
     }
 
@@ -356,7 +364,7 @@ public class WebSocketClientHandler extends TextWebSocketHandler {
                 if (error.getSessionId() != null) {
                     cleanupSession(error.getSessionId());
                     // Delegate to AgentApplicationContext for proper future completion and listener notification
-                    agentApplicationContext.handleSessionError(error.getSessionId(), 
+                    agentApplicationContext.handleSessionError(error.getSessionId(),
                         new RuntimeException(error.getCode() + ": " + error.getMessage()));
                 }
             }
@@ -485,7 +493,7 @@ public class WebSocketClientHandler extends TextWebSocketHandler {
         }
 
         if (reconnectAttempts >= properties.reconnect().maxAttempts()) {
-            logger.error("Max reconnection attempts ({}) reached - shutting down application", properties
+            logger.error("Max reconnection attempts ({}) reached - initiating shutdown", properties
                     .reconnect()
                     .maxAttempts());
             state.set(ConnectionState.FAILED);
@@ -503,22 +511,23 @@ public class WebSocketClientHandler extends TextWebSocketHandler {
     }
 
     /**
-     * Initiates a graceful shutdown of the Spring Boot application.
+     * Initiates shutdown via the configured fatal connection failure hook.
      * This is called when max reconnection attempts have been exhausted.
      */
     private void initiateApplicationShutdown() {
         logger.info("Initiating application shutdown due to connection failure");
-        // Use a separate thread to avoid blocking the current execution
-        CompletableFuture.runAsync(() -> {
-            try {
-                // Small delay to allow logging to complete
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            int exitCode = SpringApplication.exit(applicationContext, () -> 1);
-            System.exit(exitCode);
-        });
+        if (onFatalConnectionFailure != null) {
+            CompletableFuture.runAsync(() -> {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                onFatalConnectionFailure.run();
+            });
+        } else {
+            logger.warn("No onFatalConnectionFailure hook configured - connection failed but no shutdown action taken");
+        }
     }
 
     private long calculateReconnectDelay() {
@@ -542,9 +551,9 @@ public class WebSocketClientHandler extends TextWebSocketHandler {
      * Queue a message to be sent to the server.
      * Messages are processed sequentially by a virtual thread to prevent
      * concurrent WebSocket write conflicts (TEXT_PARTIAL_WRITING errors).
-     * 
+     *
      * This method is thread-safe and can be called from any thread.
-     * 
+     *
      * @param message the message to send
      */
     public void sendMessage(McpProxyMessage message) {
@@ -552,9 +561,9 @@ public class WebSocketClientHandler extends TextWebSocketHandler {
             logger.warn("Cannot send message - handler is shutting down: {}", message.getClass().getSimpleName());
             return;
         }
-        
+
         if (!outboundQueue.offer(message)) {
-            logger.error("Outbound queue full (capacity: 1000), message dropped: {}", 
+            logger.error("Outbound queue full (capacity: 1000), message dropped: {}",
                 message.getClass().getSimpleName());
         } else {
             logger.trace("Message queued for sending: {}", message.getClass().getSimpleName());

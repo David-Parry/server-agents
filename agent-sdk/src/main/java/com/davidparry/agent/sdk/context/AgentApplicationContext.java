@@ -13,11 +13,8 @@ import com.davidparry.agent.protocol.dto.NextAgentStatus;
 import com.davidparry.agent.protocol.dto.ToolDefinition;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -61,7 +58,6 @@ import java.util.concurrent.*;
  * }
  * }</pre>
  */
-@Component
 public class AgentApplicationContext {
 
     private static final Logger logger = LoggerFactory.getLogger(AgentApplicationContext.class);
@@ -108,7 +104,6 @@ public class AgentApplicationContext {
     /**
      * Initializes the context by loading agent configurations.
      */
-    @PostConstruct
     public void init() {
         logger.info("Initializing AgentApplicationContext");
         loadAgentConfigurations();
@@ -118,7 +113,6 @@ public class AgentApplicationContext {
     /**
      * Shuts down the context, cancelling all active sessions.
      */
-    @PreDestroy
     public void shutdown() {
         logger.info("Shutting down AgentApplicationContext");
 

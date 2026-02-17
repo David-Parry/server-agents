@@ -3,19 +3,22 @@ package com.davidparry.agent.sdk.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 
 /**
- * Jackson ObjectMapper configuration.
+ * Jackson ObjectMapper configuration utility.
  */
-@Configuration
-public class JacksonConfig {
-    
-    @Bean
-    @Primary
-    public ObjectMapper objectMapper() {
+public final class JacksonConfig {
+
+    private JacksonConfig() {
+        // utility class
+    }
+
+    /**
+     * Creates a pre-configured ObjectMapper with Java time support.
+     *
+     * @return a configured ObjectMapper
+     */
+    public static ObjectMapper createObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);

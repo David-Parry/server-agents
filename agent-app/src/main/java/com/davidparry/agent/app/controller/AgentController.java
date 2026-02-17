@@ -1,4 +1,4 @@
-package com.davidparry.agent.sdk.controller;
+package com.davidparry.agent.app.controller;
 
 import com.davidparry.agent.sdk.context.*;
 import com.davidparry.agent.protocol.Agent;
@@ -15,13 +15,13 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * REST Controller for agent operations using AgentApplicationContext.
- * 
+ *
  * This controller provides a clean API for:
  * - Listing available agents
  * - Activating agents with prompt parameters
  * - Monitoring active sessions
  * - Cancelling sessions
- * 
+ *
  * All agent activation goes through AgentApplicationContext, which handles:
  * - Agent lookup from configuration
  * - Session ID generation
@@ -44,7 +44,7 @@ public class AgentController extends SessionEventListenerAdapter {
 
     /**
      * List all available agents.
-     * 
+     *
      * @return set of agent keys
      */
     @GetMapping
@@ -54,18 +54,18 @@ public class AgentController extends SessionEventListenerAdapter {
 
     /**
      * Get details of a specific agent.
-     * 
+     *
      * @param agentKey the agent key
      * @return agent details or 404 if not found
      */
     @GetMapping("/{agentKey}")
     public ResponseEntity<Map<String, Object>> getAgent(@PathVariable String agentKey) {
         Optional<Agent> agentOpt = context.getAgent(agentKey);
-        
+
         if (agentOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        
+
         Agent agent = agentOpt.get();
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("name", agent.name());
@@ -75,20 +75,20 @@ public class AgentController extends SessionEventListenerAdapter {
         details.put("hasMcpConfig", agent.hasMcpConfig());
         details.put("hasTools", agent.hasTools());
         details.put("hasOutputSchema", agent.hasOutputSchema());
-        
+
         if (agent.hasTools()) {
             details.put("tools", agent.tools());
         }
-        
+
         return ResponseEntity.ok(details);
     }
 
     /**
      * Activate an agent with the given parameters.
-     * 
+     *
      * This endpoint starts an agent session asynchronously and returns immediately
      * with the session ID. Use the session endpoints to monitor progress.
-     * 
+     *
      * @param agentKey the agent key
      * @param params prompt parameters to substitute in the agent's instructions
      * @return session information including session ID
@@ -116,7 +116,7 @@ public class AgentController extends SessionEventListenerAdapter {
 
         try {
             JsonNode promptParams = objectMapper.valueToTree(params);
-            
+
             // Use activateAgentWithResult to get the session ID directly
             ActivationResult activation = context.activateAgent(agentKey, promptParams, this);
             String sessionId = activation.sessionId();
@@ -133,13 +133,13 @@ public class AgentController extends SessionEventListenerAdapter {
                     logger.error("#############!!!!!!!!!!!!!!Agent session {} failed with error", sessionId, throwable);
                 } else if (chainResult != null) {
                     if (chainResult.isFullySuccessful()) {
-                        logger.info("!!#####@@@@@@@@@@@@@@@@@@ Agent chain {} completed successfully with {} agents", 
+                        logger.info("!!#####@@@@@@@@@@@@@@@@@@ Agent chain {} completed successfully with {} agents",
                             sessionId, chainResult.getExecutedAgentCount());
-                        chainResult.getFinalResult().ifPresent(result -> 
+                        chainResult.getFinalResult().ifPresent(result ->
                             logger.info("Final result content: {}", result.getContent()));
                     } else {
-                        logger.warn(":-( !!!@@@######### Agent chain {} completed with status {}: {} agents executed, {} successful", 
-                            sessionId, 
+                        logger.warn(":-( !!!@@@######### Agent chain {} completed with status {}: {} agents executed, {} successful",
+                            sessionId,
                             chainResult.status(),
                             chainResult.getExecutedAgentCount(),
                             chainResult.getSuccessfulAgentCount());
@@ -168,7 +168,7 @@ public class AgentController extends SessionEventListenerAdapter {
 
     /**
      * List all active sessions.
-     * 
+     *
      * @return list of active session summaries
      */
     @GetMapping("/sessions")
@@ -194,7 +194,7 @@ public class AgentController extends SessionEventListenerAdapter {
 
     /**
      * Get details of a specific session.
-     * 
+     *
      * @param sessionId the session ID
      * @return session details or 404 if not found
      */
@@ -241,7 +241,7 @@ public class AgentController extends SessionEventListenerAdapter {
 
     /**
      * Cancel an active session.
-     * 
+     *
      * @param sessionId the session ID to cancel
      * @param request optional request body with reason
      * @return cancellation confirmation
@@ -257,8 +257,8 @@ public class AgentController extends SessionEventListenerAdapter {
             return ResponseEntity.notFound().build();
         }
 
-        String reason = request != null && request.containsKey("reason") 
-            ? request.get("reason") 
+        String reason = request != null && request.containsKey("reason")
+            ? request.get("reason")
             : "Cancelled via API";
 
         logger.info("Cancelling session {} with reason: {}", sessionId, reason);
@@ -274,7 +274,7 @@ public class AgentController extends SessionEventListenerAdapter {
 
     /**
      * Get context statistics.
-     * 
+     *
      * @return statistics about agents and sessions
      */
     @GetMapping("/statistics")
@@ -284,7 +284,7 @@ public class AgentController extends SessionEventListenerAdapter {
 
     /**
      * Reload agent configurations.
-     * 
+     *
      * @return reload status
      */
     @PostMapping("/reload")
@@ -302,7 +302,7 @@ public class AgentController extends SessionEventListenerAdapter {
 
     /**
      * Check connection status.
-     * 
+     *
      * @return connection status
      */
     @GetMapping("/status")

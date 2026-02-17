@@ -11,5 +11,6 @@ rootProject.name = "server-agents"
 include("agent-message-protocol")
 include("spring-agents")
 include("agent-sdk")
+include("agent-app")
 include("admin-client-spring-agents")
 include("admin-client-spring-agents:admin-ui")

@@ -1,6 +1,6 @@
 spring:
   application:
-    name: agent-sdk
+    name: agent-app
   threads:
     virtual:
       enabled: true
@@ -12,7 +12,7 @@ server:
 agent:
   client:
     # API key for authentication with the main server
-    api-key: ${AGENT_API_KEY}
+    api-key: ${AGENT_API_KEY:}
     
     # WebSocket server URL
     server-url: ${AGENT_SERVER_URL:ws://localhost:8080/agent}
@@ -54,7 +54,7 @@ agent:
     #   - Classpath: classpath:config/agent.yml
     #   - Environment variable: ${AGENT_CONFIG_PATH}
     #
-    agent-config-path: ${AGENT_CONFIG_PATH}
+    agent-config-path: ${AGENT_CONFIG_PATH:}
     
     # MCP client settings
     mcp:
@@ -72,7 +72,7 @@ agent:
       #   - /tmp/agent-sessions
       #
       # Environment variable: MCP_SANDBOX_BASE_PATH
-      sandbox-base-path: ${MCP_SANDBOX_BASE_PATH:/tmp/agent-sessions}
+      sandbox-base-path: ${MCP_SANDBOX_BASE_PATH:}
 
 # Actuator endpoints
 management:

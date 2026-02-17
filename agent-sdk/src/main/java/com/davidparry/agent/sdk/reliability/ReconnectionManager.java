@@ -3,7 +3,6 @@ package com.davidparry.agent.sdk.reliability;
 import com.davidparry.agent.sdk.config.AgentSdkProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -13,7 +12,6 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Manages reconnection logic with exponential backoff.
  */
-@Component
 public class ReconnectionManager {
     
     private static final Logger logger = LoggerFactory.getLogger(ReconnectionManager.class);

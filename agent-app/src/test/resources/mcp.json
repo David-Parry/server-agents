@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "local-tools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "env": {
+        "API_KEY": "{MCP_API_KEY}"
+      }
+    },
+    "remote-api": {
+      "type": "http",
+      "url": "https://mcp.sentry.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer {SENTRY_TOKEN}"
+      }
+    },
+    "legacy-remote": {
+      "type": "sse",
+      "url": "https://example.com/sse"
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+    }
+  }
+}
