@@ -84,8 +84,6 @@ public class OpenApiConfig {
                 ```
                 Authorization: Bearer <admin-token>
                 ```
-                The admin token is configured via the `AGENT_ADMIN_API_TOKEN` environment variable.
-
                 ### Customer API (`/api/customers/**`, `/api/models/**`)
                 Customer endpoints are currently open but may require authentication in production.
 

@@ -46,6 +46,7 @@ public class PromptExecutionService {
     private final ChatClient.Builder ollamaClientBuilder;
     private final CustomerUsageService customerUsageService;
     private final LowTokenNotificationService notificationService;
+    private final LlmTokenUsageService llmTokenUsageService;
     private final Timer promptExecutionTimer;
     private final Counter promptSuccessCounter;
     private final Counter promptFailureCounter;
@@ -57,11 +58,13 @@ public class PromptExecutionService {
     public PromptExecutionService(AnthropicChatModel anthropicChatModel, OllamaChatModel ollamaChatModel,
                                   CustomerUsageService customerUsageService,
                                   LowTokenNotificationService notificationService,
+                                  LlmTokenUsageService llmTokenUsageService,
                                   MeterRegistry meterRegistry) {
         this.anthropicClientBuilder = ChatClient.builder(anthropicChatModel);
         this.ollamaClientBuilder = ChatClient.builder(ollamaChatModel);
         this.customerUsageService = customerUsageService;
         this.notificationService = notificationService;
+        this.llmTokenUsageService = llmTokenUsageService;
 
         this.promptExecutionTimer = Timer
                 .builder("mcp.prompts.duration")
@@ -160,6 +163,16 @@ public class PromptExecutionService {
                 checkAndSendLowTokenNotification(customerId, model);
             }
 
+            // Record per-call token usage for granular tracking
+            // Get latest session to have accurate toolCallCount
+            PromptSession sessionForUsage = session
+                    .getConnection()
+                    .getSession(session.getSessionId())
+                    .orElse(currentSession.get());
+            llmTokenUsageService.recordUsage(customerId, model, session.getAgentType(),
+                    session.getSessionId(), llmResponse.promptTokens(), llmResponse.completionTokens(),
+                    llmResponse.totalTokens(), sessionForUsage.getToolCallCount());
+
             // CRITICAL: Get the latest session from the connection to pick up toolCallCount
             // updated by RemoteToolCallback during tool execution
             PromptSession latestSession = session
@@ -205,7 +218,7 @@ public class PromptExecutionService {
                     .sessionId(failedSession.getSessionId())
                     .success(false)
                     .content(null)
-                    .errorMessage(e.getMessage())
+                    .errorMessage("An internal error occurred. Please try again later.")
                     .toolCallsExecuted(failedSession.getToolCallCount())
                     .totalDurationMs(failedSession.getDurationMs())
                     .metrics(failedSession.createMetrics(0))
@@ -245,7 +258,7 @@ public class PromptExecutionService {
         if (chatResponse != null) {
             return convertToLlmResponse(chatResponse.getResult().getOutput().getText(), converter, chatResponse);
         } else {
-            return new LlmResponse(null, 0, false);
+            return new LlmResponse(null, 0, 0, 0, false);
         }
     }
 
@@ -270,11 +283,12 @@ public class PromptExecutionService {
                     + content);
         }
 
-        // Extract token count from metadata
-        int tokenCount = extractTokenCount(chatResponse);
-        LOGGER.debug("Blocking execution completed: tokenCount={} success= {}", tokenCount, success);
+        // Extract token counts from metadata
+        int[] tokenCounts = extractTokenCounts(chatResponse);
+        LOGGER.debug("Blocking execution completed: promptTokens={}, completionTokens={}, totalTokens={}, success={}",
+                tokenCounts[0], tokenCounts[1], tokenCounts[2], success);
         LOGGER.trace("!!!!!!! the result after being parsed is \n{}", result);
-        return new LlmResponse(result, tokenCount, success);
+        return new LlmResponse(result, tokenCounts[0], tokenCounts[1], tokenCounts[2], success);
     }
 
     private LlmResponse executeStreaming(ChatClient client, AtomicReference<PromptSession> sessionRef,
@@ -329,34 +343,37 @@ public class PromptExecutionService {
 
         } catch (Exception e) {
             LOGGER.error("Error during streaming execution", e);
-            throw new RuntimeException("Streaming execution failed: " + e.getMessage(), e);
+            throw new RuntimeException("Streaming execution failed", e);
         }
 
-        // Extract token count from the last response (usually contains aggregated usage)
-        int tokenCount = extractTokenCount(lastChatResponse.get());
-        LOGGER.debug("Streaming execution completed: tokenCount={}", tokenCount);
+        // Extract token counts from the last response (usually contains aggregated usage)
+        int[] tokenCounts = extractTokenCounts(lastChatResponse.get());
+        LOGGER.debug("Streaming execution completed: promptTokens={}, completionTokens={}, totalTokens={}",
+                tokenCounts[0], tokenCounts[1], tokenCounts[2]);
 
         return convertToLlmResponse(fullResponse.toString(), converter, lastChatResponse.get());
     }
 
     /**
-     * Extracts the total token count from a ChatResponse.
+     * Extracts prompt, completion, and total token counts from a ChatResponse.
      *
      * @param chatResponse the response from the LLM
-     * @return the total token count, or 0 if not available
+     * @return int array of [promptTokens, completionTokens, totalTokens]
      */
-    private int extractTokenCount(ChatResponse chatResponse) {
+    private int[] extractTokenCounts(ChatResponse chatResponse) {
         if (chatResponse == null) {
-            return 0;
+            return new int[]{0, 0, 0};
         }
 
         Usage usage = chatResponse.getMetadata().getUsage();
         if (usage == null) {
-            return 0;
+            return new int[]{0, 0, 0};
         }
 
-        Integer totalTokens = usage.getTotalTokens();
-        return totalTokens != null ? totalTokens : 0;
+        int prompt = usage.getPromptTokens() != null ? usage.getPromptTokens() : 0;
+        int completion = usage.getCompletionTokens() != null ? usage.getCompletionTokens() : 0;
+        int total = usage.getTotalTokens() != null ? usage.getTotalTokens() : 0;
+        return new int[]{prompt, completion, total};
     }
 
     private ChatClient selectChatClient(String model) {

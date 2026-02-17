@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -36,10 +36,13 @@ import {
   Plus,
   Settings,
   X,
+  BarChart3,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
-import { CustomerAgentTypeResponse } from '@/lib/types';
+import { CustomerAgentTypeResponse, MonthlyTokenUsageResponse } from '@/lib/types';
 
 export default function CustomerDetailPage() {
   const params = useParams();
@@ -68,6 +71,8 @@ export default function CustomerDetailPage() {
     customTokenLimit: '',
     priority: '',
   });
+  const [tokenUsageModelFilter, setTokenUsageModelFilter] = useState<string>('');
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
 
   const { data: customer, isLoading } = useQuery({
     queryKey: ['customer', customerId],
@@ -89,6 +94,93 @@ export default function CustomerDetailPage() {
     queryKey: ['agent-types'],
     queryFn: () => api.listAgentTypes(),
   });
+
+  const { data: tokenUsageData, isLoading: isLoadingTokenUsage } = useQuery({
+    queryKey: ['customer-token-usage', customerId, tokenUsageModelFilter],
+    queryFn: () =>
+      api.getCustomerTokenUsage(
+        customerId,
+        12,
+        tokenUsageModelFilter || undefined
+      ),
+  });
+
+  // Group token usage by month, with per-model and per-agent-type breakdown
+  const tokenUsageByMonth = useMemo(() => {
+    if (!tokenUsageData) return [];
+
+    const monthMap = new Map<
+      string,
+      {
+        year: number;
+        month: number;
+        key: string;
+        totalTokens: number;
+        promptTokens: number;
+        completionTokens: number;
+        totalCalls: number;
+        totalToolCalls: number;
+        rows: MonthlyTokenUsageResponse[];
+      }
+    >();
+
+    for (const row of tokenUsageData) {
+      const key = `${row.year}-${String(row.month).padStart(2, '0')}`;
+      const existing = monthMap.get(key);
+      if (existing) {
+        existing.totalTokens += row.totalTokens;
+        existing.promptTokens += row.promptTokens;
+        existing.completionTokens += row.completionTokens;
+        existing.totalCalls += row.callCount;
+        existing.totalToolCalls += row.toolCallsCount;
+        existing.rows.push(row);
+      } else {
+        monthMap.set(key, {
+          year: row.year,
+          month: row.month,
+          key,
+          totalTokens: row.totalTokens,
+          promptTokens: row.promptTokens,
+          completionTokens: row.completionTokens,
+          totalCalls: row.callCount,
+          totalToolCalls: row.toolCallsCount,
+          rows: [row],
+        });
+      }
+    }
+
+    return Array.from(monthMap.values()).sort((a, b) =>
+      b.key.localeCompare(a.key)
+    );
+  }, [tokenUsageData]);
+
+  // Get unique models from usage data for the filter dropdown
+  const availableModelsForFilter = useMemo(() => {
+    if (!tokenUsageData) return [];
+    const models = new Set(tokenUsageData.map((r) => r.model));
+    return Array.from(models).sort();
+  }, [tokenUsageData]);
+
+  const currentMonth = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
+  const toggleMonth = (key: string) => {
+    setExpandedMonths((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const monthName = (month: number) => {
+    return new Date(2000, month - 1).toLocaleString('default', { month: 'long' });
+  };
 
   const generateTokenMutation = useMutation({
     mutationFn: () => api.generateToken(customerId),
@@ -519,6 +611,179 @@ export default function CustomerDetailPage() {
             <p className="text-gray-400 text-center py-4">
               No agent types assigned to this customer
             </p>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Token Usage */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-blue-400" />
+              Token Usage
+            </h2>
+            {!tokenUsageModelFilter && availableModelsForFilter.length > 1 && (
+              <select
+                className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={tokenUsageModelFilter}
+                onChange={(e) => setTokenUsageModelFilter(e.target.value)}
+              >
+                <option value="">All Models</option>
+                {availableModelsForFilter.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            )}
+            {tokenUsageModelFilter && (
+              <div className="flex items-center gap-2">
+                <Badge variant="info">{tokenUsageModelFilter}</Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setTokenUsageModelFilter('')}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                queryClient.invalidateQueries({
+                  queryKey: ['customer-token-usage', customerId],
+                })
+              }
+              title="Refresh token usage"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        {isLoadingTokenUsage ? (
+          <CardContent>
+            <div className="flex items-center justify-center py-8">
+              <Spinner className="w-6 h-6" />
+            </div>
+          </CardContent>
+        ) : tokenUsageByMonth.length > 0 ? (
+          <div>
+            {/* Current month summary */}
+            {tokenUsageByMonth[0] && (
+              <CardContent className="border-b border-gray-700">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase">Latest Month</p>
+                    <p className="text-lg font-semibold text-white">
+                      {monthName(tokenUsageByMonth[0].month)} {tokenUsageByMonth[0].year}
+                    </p>
+                    {tokenUsageByMonth[0].key === currentMonth && (
+                      <Badge variant="info" className="mt-1">Current</Badge>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase">Total Tokens</p>
+                    <p className="text-lg font-semibold text-white">
+                      {tokenUsageByMonth[0].totalTokens.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase">Prompt</p>
+                    <p className="text-lg font-semibold text-blue-400">
+                      {tokenUsageByMonth[0].promptTokens.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase">Completion</p>
+                    <p className="text-lg font-semibold text-green-400">
+                      {tokenUsageByMonth[0].completionTokens.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase">API Calls</p>
+                    <p className="text-lg font-semibold text-white">
+                      {tokenUsageByMonth[0].totalCalls.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            )}
+
+            {/* Monthly breakdown table */}
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Month</TableHead>
+                  <TableHead>Total Tokens</TableHead>
+                  <TableHead>Prompt</TableHead>
+                  <TableHead>Completion</TableHead>
+                  <TableHead>Calls</TableHead>
+                  <TableHead>Tool Calls</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tokenUsageByMonth.map((month) => (
+                  <Fragment key={month.key}>
+                    <TableRow
+                      className={month.key === currentMonth ? 'bg-blue-900/10' : ''}
+                    >
+                      <TableCell>
+                        <button
+                          className="flex items-center gap-1 text-white font-medium hover:text-blue-400 transition-colors"
+                          onClick={() => toggleMonth(month.key)}
+                        >
+                          {expandedMonths.has(month.key) ? (
+                            <ChevronDown className="w-4 h-4" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4" />
+                          )}
+                          {monthName(month.month)} {month.year}
+                          {month.key === currentMonth && (
+                            <Badge variant="info" className="ml-2">Current</Badge>
+                          )}
+                        </button>
+                      </TableCell>
+                      <TableCell className="text-white font-medium">
+                        {month.totalTokens.toLocaleString()}
+                      </TableCell>
+                      <TableCell>{month.promptTokens.toLocaleString()}</TableCell>
+                      <TableCell>{month.completionTokens.toLocaleString()}</TableCell>
+                      <TableCell>{month.totalCalls.toLocaleString()}</TableCell>
+                      <TableCell>{month.totalToolCalls.toLocaleString()}</TableCell>
+                    </TableRow>
+                    {expandedMonths.has(month.key) &&
+                      month.rows.map((row, idx) => (
+                        <TableRow key={`${month.key}-${row.model}-${row.agentType}-${idx}`}>
+                          <TableCell className="pl-10">
+                            <div className="flex items-center gap-2">
+                              <code className="px-1.5 py-0.5 bg-gray-800 rounded text-xs text-blue-400">
+                                {row.model}
+                              </code>
+                              {row.agentType && (
+                                <code className="px-1.5 py-0.5 bg-gray-800 rounded text-xs text-purple-400">
+                                  {row.agentType}
+                                </code>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>{row.totalTokens.toLocaleString()}</TableCell>
+                          <TableCell>{row.promptTokens.toLocaleString()}</TableCell>
+                          <TableCell>{row.completionTokens.toLocaleString()}</TableCell>
+                          <TableCell>{row.callCount.toLocaleString()}</TableCell>
+                          <TableCell>{row.toolCallsCount.toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))}
+                  </Fragment>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ) : (
+          <CardContent>
+            <p className="text-gray-400 text-center py-4">No token usage data available</p>
           </CardContent>
         )}
       </Card>
