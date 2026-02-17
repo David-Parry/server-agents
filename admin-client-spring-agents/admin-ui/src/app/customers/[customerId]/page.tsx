@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -726,9 +726,8 @@ export default function CustomerDetailPage() {
               </TableHeader>
               <TableBody>
                 {tokenUsageByMonth.map((month) => (
-                  <>
+                  <Fragment key={month.key}>
                     <TableRow
-                      key={month.key}
                       className={month.key === currentMonth ? 'bg-blue-900/10' : ''}
                     >
                       <TableCell>
@@ -777,7 +776,7 @@ export default function CustomerDetailPage() {
                           <TableCell>{row.toolCallsCount.toLocaleString()}</TableCell>
                         </TableRow>
                       ))}
-                  </>
+                  </Fragment>
                 ))}
               </TableBody>
             </Table>

@@ -4,6 +4,8 @@ import com.davidparry.agent.dto.MonthlyTokenUsageResponse;
 import com.davidparry.agent.entity.CustomerEntity;
 import com.davidparry.agent.repository.CustomerRepository;
 import com.davidparry.agent.repository.LlmTokenUsageRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -24,11 +26,17 @@ public class LlmTokenUsageService {
 
     private final LlmTokenUsageRepository tokenUsageRepository;
     private final CustomerRepository customerRepository;
+    private final Counter usageRecordFailureCounter;
 
     public LlmTokenUsageService(LlmTokenUsageRepository tokenUsageRepository,
-                                CustomerRepository customerRepository) {
+                                CustomerRepository customerRepository,
+                                MeterRegistry meterRegistry) {
         this.tokenUsageRepository = tokenUsageRepository;
         this.customerRepository = customerRepository;
+        this.usageRecordFailureCounter = Counter
+                .builder("llm.token.usage.record.failures")
+                .description("Number of failures when recording token usage")
+                .register(meterRegistry);
     }
 
     /**
@@ -60,7 +68,9 @@ public class LlmTokenUsageService {
             LOGGER.debug("Recorded token usage: customer={}, model={}, agent={}, total={}",
                     externalCustomerId, model, agentType, totalTokens);
         } catch (Exception e) {
-            LOGGER.warn("Failed to record token usage for customer {}: {}", externalCustomerId, e.getMessage());
+            usageRecordFailureCounter.increment();
+            LOGGER.error("Failed to record token usage for customer={}, model={}, session={}",
+                    externalCustomerId, model, sessionId, e);
         }
     }
 
@@ -74,6 +84,10 @@ public class LlmTokenUsageService {
      */
     @Transactional(readOnly = true)
     public List<MonthlyTokenUsageResponse> getMonthlyUsage(UUID externalCustomerId, int months, String model) {
+        if (months < 1 || months > 24) {
+            throw new IllegalArgumentException("months must be between 1 and 24, got: " + months);
+        }
+
         Optional<CustomerEntity> customerOpt = customerRepository.findByCustomerId(externalCustomerId);
         if (customerOpt.isEmpty()) {
             return List.of();

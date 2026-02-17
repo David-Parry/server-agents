@@ -218,7 +218,7 @@ public class PromptExecutionService {
                     .sessionId(failedSession.getSessionId())
                     .success(false)
                     .content(null)
-                    .errorMessage(e.getMessage())
+                    .errorMessage("An internal error occurred. Please try again later.")
                     .toolCallsExecuted(failedSession.getToolCallCount())
                     .totalDurationMs(failedSession.getDurationMs())
                     .metrics(failedSession.createMetrics(0))
@@ -343,7 +343,7 @@ public class PromptExecutionService {
 
         } catch (Exception e) {
             LOGGER.error("Error during streaming execution", e);
-            throw new RuntimeException("Streaming execution failed: " + e.getMessage(), e);
+            throw new RuntimeException("Streaming execution failed", e);
         }
 
         // Extract token counts from the last response (usually contains aggregated usage)

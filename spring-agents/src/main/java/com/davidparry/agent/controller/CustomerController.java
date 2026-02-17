@@ -602,13 +602,18 @@ public class CustomerController {
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Successfully retrieved token usage"),
+        @ApiResponse(responseCode = "400", description = "Invalid months parameter"),
         @ApiResponse(responseCode = "404", description = "Customer not found")
     })
     @GetMapping("/{customerId}/token-usage")
     public ResponseEntity<List<MonthlyTokenUsageResponse>> getTokenUsage(
             @Parameter(description = "Customer's external UUID") @PathVariable UUID customerId,
-            @Parameter(description = "Number of months to look back") @RequestParam(defaultValue = "12") int months,
+            @Parameter(description = "Number of months to look back (1-24)") @RequestParam(defaultValue = "12") int months,
             @Parameter(description = "Optional model filter") @RequestParam(required = false) String model) {
+
+        if (months < 1 || months > 24) {
+            return ResponseEntity.badRequest().build();
+        }
 
         if (!customerRepository.existsByCustomerId(customerId)) {
             return ResponseEntity.notFound().build();
