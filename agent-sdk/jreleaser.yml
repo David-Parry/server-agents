@@ -1,0 +1,25 @@
+project:
+  name: agent-sdk
+  version: 3.0.0
+  description: Core framework for Qodo Agent SDK
+  authors:
+    - David Parry
+  license: AGPL-3.0
+  links:
+    homepage: https://github.com/David-Parry/spring-command-sdk
+
+signing:
+  active: ALWAYS
+  armored: true
+
+deploy:
+  maven:
+    mavenCentral:
+      sonatype:
+        active: RELEASE
+        url: https://central.sonatype.com/api/v1/publisher
+        stagingRepositories:
+          - build/staging-deploy
+        connectTimeout: 30
+        readTimeout: 120
+        retryDelay: 5
