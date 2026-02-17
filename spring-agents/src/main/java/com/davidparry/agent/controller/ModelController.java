@@ -119,7 +119,9 @@ public class ModelController {
                 request.provider(),
                 request.displayName(),
                 request.description(),
-                request.defaultTokensForNewCustomers()
+                request.defaultTokensForNewCustomers(),
+                request.inputTokenPricePerMillion(),
+                request.outputTokenPricePerMillion()
             );
 
             LOGGER.info("Created model: {} and linked to all customers", model.getModel());
@@ -216,6 +218,8 @@ public class ModelController {
             model.getDisplayName(),
             model.getDescription(),
             model.getDefaultTokensForNewCustomers(),
+            model.getInputTokenPricePerMillion(),
+            model.getOutputTokenPricePerMillion(),
             model.isEnabled(),
             model.getCreatedAt(),
             model.getUpdatedAt()

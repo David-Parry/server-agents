@@ -6,6 +6,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -35,6 +36,12 @@ public class LlmModelEntity {
      */
     @Column(name = "default_tokens_for_new_customers")
     private Long defaultTokensForNewCustomers = 0L;
+
+    @Column(name = "input_token_price_per_million", precision = 10, scale = 4)
+    private BigDecimal inputTokenPricePerMillion = BigDecimal.ZERO;
+
+    @Column(name = "output_token_price_per_million", precision = 10, scale = 4)
+    private BigDecimal outputTokenPricePerMillion = BigDecimal.ZERO;
 
     @Column(nullable = false)
     private boolean enabled = true;
@@ -95,6 +102,22 @@ public class LlmModelEntity {
 
     public void setDefaultTokensForNewCustomers(Long defaultTokensForNewCustomers) {
         this.defaultTokensForNewCustomers = defaultTokensForNewCustomers;
+    }
+
+    public BigDecimal getInputTokenPricePerMillion() {
+        return inputTokenPricePerMillion;
+    }
+
+    public void setInputTokenPricePerMillion(BigDecimal inputTokenPricePerMillion) {
+        this.inputTokenPricePerMillion = inputTokenPricePerMillion;
+    }
+
+    public BigDecimal getOutputTokenPricePerMillion() {
+        return outputTokenPricePerMillion;
+    }
+
+    public void setOutputTokenPricePerMillion(BigDecimal outputTokenPricePerMillion) {
+        this.outputTokenPricePerMillion = outputTokenPricePerMillion;
     }
 
     public boolean isEnabled() {

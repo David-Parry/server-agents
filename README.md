@@ -264,16 +264,44 @@ agents:
 
 ### 1. Start the Server (spring-agents)
 
+Create the file `spring-agents/src/main/resources/application-local.yml` (this file is git-ignored):
+
+```yaml
+agent:
+  admin:
+    api-token: <add your token>
+
+  security:
+    hashing-secrets:
+      V1: <add your token>
+
+    jwt:
+      signing-key: <add your token>
+```
+
+You can generate secure values for these fields with:
+
+```bash
+# Generate admin API token
+openssl rand -base64 48
+
+# Generate hashing secret (minimum 32 characters)
+openssl rand -base64 64
+
+# Generate JWT signing key (minimum 32 characters for HS256)
+openssl rand -base64 48
+```
+
+You also need to set the Anthropic API key as an environment variable:
+
+```bash
+export ANTHROPIC_API_KEY=your-anthropic-api-key
+```
+
+Then run with the local profile:
+
 ```bash
 cd spring-agents
-
-# Set required environment variables
-export ANTHROPIC_API_KEY=your-anthropic-api-key
-export AGENT_ADMIN_API_TOKEN=$(openssl rand -base64 48)
-export AGENT_HASHING_SECRET_V1=$(openssl rand -base64 64)
-export AGENT_JWT_SIGNING_KEY=$(openssl rand -base64 48)
-
-# Run with local profile for development
 ./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
@@ -309,15 +337,22 @@ Save the returned `apiToken` for the agent-sdk.
 
 ### 4. Start the Agent Client
 
+Create the file `agent-sdk/src/main/resources/application-local.yml` (this file is git-ignored):
+
+```yaml
+agent:
+  client:
+    api-key: <add your token>
+    agent-config-path: /path/to/your/agent.yml
+```
+
+The `api-key` is the API token returned from step 3 when you created a customer. The `agent-config-path` points to your agent configuration file (see [Agent Configuration Example](#agent-configuration-example)).
+
+Then run with the local profile:
+
 ```bash
 cd agent-sdk
-
-# Set environment variables
-export AGENT_API_KEY=<api-token-from-step-3>
-export AGENT_SERVER_URL=ws://localhost:8080/agent
-
-# Run the client
-./gradlew bootRun
+./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
 ### 5. Configure MCP Servers

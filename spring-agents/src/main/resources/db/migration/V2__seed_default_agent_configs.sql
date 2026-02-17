@@ -6,20 +6,20 @@
 -- Part 1: Default LLM Models (with default_tokens_for_new_customers)
 -- -----------------------------------------------------------------------------
 
-INSERT INTO llm_model (model, provider, display_name, description, default_tokens_for_new_customers, enabled)
-VALUES 
-    ('claude-sonnet-4-5', 'anthropic', 'Claude Sonnet 4.5', 
-     'Anthropic Claude Sonnet 4.5 - balanced performance and capability', 0, TRUE),
-    ('claude-sonnet-4-20250514', 'anthropic', 'Claude Sonnet 4 (2025-05-14)', 
-     'Anthropic Claude Sonnet 4 - May 2025 release', 0, TRUE),
-    ('claude-opus-4-20250514', 'anthropic', 'Claude Opus 4 (2025-05-14)', 
-     'Anthropic Claude Opus 4 - highest capability model', 0, TRUE),
-    ('gpt-4o', 'openai', 'GPT-4o', 
-     'OpenAI GPT-4o - multimodal model', 0, TRUE),
-    ('gpt-4-turbo', 'openai', 'GPT-4 Turbo', 
-     'OpenAI GPT-4 Turbo - fast and capable', 0, TRUE),
-    ('llama3', 'ollama', 'Llama 3', 
-     'Meta Llama 3 via Ollama - local inference', 0, TRUE);
+INSERT INTO llm_model (model, provider, display_name, description, default_tokens_for_new_customers, input_token_price_per_million, output_token_price_per_million, enabled)
+VALUES
+    ('claude-sonnet-4-5', 'anthropic', 'Claude Sonnet 4.5',
+     'Anthropic Claude Sonnet 4.5 - balanced performance and capability', 0, 3.00, 15.00, TRUE),
+    ('claude-sonnet-4-20250514', 'anthropic', 'Claude Sonnet 4 (2025-05-14)',
+     'Anthropic Claude Sonnet 4 - May 2025 release', 0, 3.00, 15.00, TRUE),
+    ('claude-opus-4-20250514', 'anthropic', 'Claude Opus 4 (2025-05-14)',
+     'Anthropic Claude Opus 4 - highest capability model', 0, 15.00, 75.00, TRUE),
+    ('gpt-4o', 'openai', 'GPT-4o',
+     'OpenAI GPT-4o - multimodal model', 0, 2.50, 10.00, TRUE),
+    ('gpt-4-turbo', 'openai', 'GPT-4 Turbo',
+     'OpenAI GPT-4 Turbo - fast and capable', 0, 10.00, 30.00, TRUE),
+    ('llama3', 'ollama', 'Llama 3',
+     'Meta Llama 3 via Ollama - local inference', 0, 0.00, 0.00, TRUE);
 
 -- -----------------------------------------------------------------------------
 -- Part 2: Default Policy Types (reset periods only)

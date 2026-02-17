@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -23,6 +25,7 @@ import java.util.UUID;
 public class LlmTokenUsageService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LlmTokenUsageService.class);
+    private static final BigDecimal ONE_MILLION = new BigDecimal("1000000");
 
     private final LlmTokenUsageRepository tokenUsageRepository;
     private final CustomerRepository customerRepository;
@@ -46,17 +49,17 @@ public class LlmTokenUsageService {
      * @param model the LLM model used
      * @param agentType the agent type
      * @param sessionId the session ID
-     * @param promptTokens prompt (input) tokens
-     * @param completionTokens completion (output) tokens
+     * @param inputTokens input tokens
+     * @param outputTokens output tokens
      * @param totalTokens total tokens
      * @param toolCallsCount number of tool calls in this session
      */
     @Transactional
     public void recordUsage(UUID externalCustomerId, String model, String agentType, String sessionId,
-                            int promptTokens, int completionTokens, int totalTokens, int toolCallsCount) {
+                            int inputTokens, int outputTokens, int totalTokens, int toolCallsCount) {
         try {
             int rowsInserted = tokenUsageRepository.insertUsageByExternalId(externalCustomerId, model,
-                    agentType, sessionId, promptTokens, completionTokens, totalTokens, toolCallsCount);
+                    agentType, sessionId, inputTokens, outputTokens, totalTokens, toolCallsCount);
 
             if (rowsInserted == 0) {
                 LOGGER.warn("Cannot record token usage: customer not found for external ID {}", externalCustomerId);
@@ -107,16 +110,37 @@ public class LlmTokenUsageService {
     }
 
     private MonthlyTokenUsageResponse toMonthlyResponse(Object[] row) {
+        long inputTokens = ((Number) row[4]).longValue();
+        long outputTokens = ((Number) row[5]).longValue();
+        BigDecimal inputPrice = row[9] != null ? new BigDecimal(row[9].toString()) : BigDecimal.ZERO;
+        BigDecimal outputPrice = row[10] != null ? new BigDecimal(row[10].toString()) : BigDecimal.ZERO;
+
+        BigDecimal estimatedInputCost = calculateCost(inputTokens, inputPrice);
+        BigDecimal estimatedOutputCost = calculateCost(outputTokens, outputPrice);
+        BigDecimal estimatedTotalCost = estimatedInputCost.add(estimatedOutputCost);
+
         return new MonthlyTokenUsageResponse(
                 ((Number) row[0]).intValue(),   // year
                 ((Number) row[1]).intValue(),   // month
                 (String) row[2],                // model
                 (String) row[3],                // agentType
-                ((Number) row[4]).longValue(),  // promptTokens
-                ((Number) row[5]).longValue(),  // completionTokens
+                inputTokens,                    // inputTokens
+                outputTokens,                   // outputTokens
                 ((Number) row[6]).longValue(),  // totalTokens
                 ((Number) row[7]).longValue(),  // toolCallsCount
-                ((Number) row[8]).longValue()   // callCount
+                ((Number) row[8]).longValue(),  // callCount
+                inputPrice,
+                outputPrice,
+                estimatedInputCost,
+                estimatedOutputCost,
+                estimatedTotalCost
         );
+    }
+
+    private BigDecimal calculateCost(long tokens, BigDecimal pricePerMillion) {
+        return BigDecimal.valueOf(tokens)
+                .divide(ONE_MILLION, 10, RoundingMode.HALF_UP)
+                .multiply(pricePerMillion)
+                .setScale(2, RoundingMode.HALF_UP);
     }
 }

@@ -102,10 +102,10 @@ class ModelControllerTest {
     void createModel_shouldCreateModelSuccessfully() {
         // Given
         CreateModelRequest request = new CreateModelRequest(
-                "new-model", "anthropic", "New Model", "Description", 100000L
+                "new-model", "anthropic", "New Model", "Description", 100000L, null, null
         );
         LlmModelEntity createdModel = createModel("new-model", "anthropic", true);
-        when(llmModelService.createModel(anyString(), anyString(), anyString(), anyString(), anyLong()))
+        when(llmModelService.createModel(anyString(), anyString(), anyString(), anyString(), anyLong(), any(), any()))
                 .thenReturn(createdModel);
 
         // When
@@ -119,7 +119,7 @@ class ModelControllerTest {
     void createModel_shouldReturn400WhenModelMissing() {
         // Given
         CreateModelRequest request = new CreateModelRequest(
-                null, "anthropic", "New Model", "Description", 100000L
+                null, "anthropic", "New Model", "Description", 100000L, null, null
         );
 
         // When
@@ -133,7 +133,7 @@ class ModelControllerTest {
     void createModel_shouldReturn400WhenModelBlank() {
         // Given
         CreateModelRequest request = new CreateModelRequest(
-                "  ", "anthropic", "New Model", "Description", 100000L
+                "  ", "anthropic", "New Model", "Description", 100000L, null, null
         );
 
         // When
@@ -147,7 +147,7 @@ class ModelControllerTest {
     void createModel_shouldReturn400WhenProviderMissing() {
         // Given
         CreateModelRequest request = new CreateModelRequest(
-                "new-model", null, "New Model", "Description", 100000L
+                "new-model", null, "New Model", "Description", 100000L, null, null
         );
 
         // When
@@ -161,7 +161,7 @@ class ModelControllerTest {
     void createModel_shouldReturn400WhenProviderBlank() {
         // Given
         CreateModelRequest request = new CreateModelRequest(
-                "new-model", "  ", "New Model", "Description", 100000L
+                "new-model", "  ", "New Model", "Description", 100000L, null, null
         );
 
         // When
@@ -175,9 +175,9 @@ class ModelControllerTest {
     void createModel_shouldReturn409WhenModelExists() {
         // Given
         CreateModelRequest request = new CreateModelRequest(
-                "existing-model", "anthropic", "Model", "Description", 100000L
+                "existing-model", "anthropic", "Model", "Description", 100000L, null, null
         );
-        when(llmModelService.createModel(anyString(), anyString(), anyString(), anyString(), anyLong()))
+        when(llmModelService.createModel(anyString(), anyString(), anyString(), anyString(), anyLong(), any(), any()))
                 .thenThrow(new IllegalArgumentException("Model already exists"));
 
         // When

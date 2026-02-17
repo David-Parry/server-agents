@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -48,7 +49,9 @@ public class LlmModelService {
      * Uses the default UNLIMITED policy type for new allowances.
      */
     public LlmModelEntity createModel(String model, String provider, String displayName,
-                                       String description, Long defaultTokens) {
+                                       String description, Long defaultTokens,
+                                       BigDecimal inputTokenPricePerMillion,
+                                       BigDecimal outputTokenPricePerMillion) {
         if (modelRepository.existsById(model)) {
             throw new IllegalArgumentException("Model already exists: " + model);
         }
@@ -59,6 +62,12 @@ public class LlmModelService {
         llmModel.setDisplayName(displayName);
         llmModel.setDescription(description);
         llmModel.setDefaultTokensForNewCustomers(defaultTokens != null ? defaultTokens : 0L);
+        if (inputTokenPricePerMillion != null) {
+            llmModel.setInputTokenPricePerMillion(inputTokenPricePerMillion);
+        }
+        if (outputTokenPricePerMillion != null) {
+            llmModel.setOutputTokenPricePerMillion(outputTokenPricePerMillion);
+        }
         llmModel.setEnabled(true);
 
         llmModel = modelRepository.save(llmModel);
