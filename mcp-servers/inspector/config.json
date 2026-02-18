@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "git-mcp": {
+      "command": "java",
+      "args": [
+        "-jar ../build/libs/mcp-internal-1.0.4.jar"
+      ],
+      "env": {
+
+      }
+    }
+  }
+}

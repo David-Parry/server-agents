@@ -1,0 +1,169 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.6'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.unbroken-dome.test-sets' version '4.1.0'
+    id 'jacoco'
+}
+
+group = 'ai.qodo.mcp'
+version = '1.0.4'
+description = 'git'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << '-parameters'
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    set('springAiVersion', "1.0.3")
+    set('jgitVersion', '7.3.0.202506031305-r')
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url 'https://maven.atlassian.com/content/repositories/atlassian-public/'
+    }
+}
+
+dependencies {
+    implementation 'com.atlassian.jira:jira-rest-java-client-api:7.0.1'
+    implementation 'com.atlassian.jira:jira-rest-java-client-core:7.0.1'
+    implementation 'io.atlassian.fugue:fugue:5.0.0'
+    // Confluence REST API client (using Spring WebClient)
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.ai:spring-ai-starter-mcp-server'
+    implementation 'org.springframework.ai:spring-ai-starter-mcp-server-webmvc'
+    implementation "org.eclipse.jgit:org.eclipse.jgit.ssh.apache:${jgitVersion}"
+    implementation "org.eclipse.jgit:org.eclipse.jgit.ssh.apache.agent:${jgitVersion}"
+    implementation "org.eclipse.jgit:org.eclipse.jgit:${jgitVersion}"
+    implementation 'net.i2p.crypto:eddsa:0.3.0'  // EdDSA support for Ed25519 SSH keys
+    implementation 'org.kohsuke:github-api:1.321'
+    implementation 'io.github.hkarthik7:azd:6.1.3'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.mockito:mockito-inline:5.2.0'
+    testImplementation 'org.powermock:powermock-reflect:2.0.9'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+testSets {
+    integrationTest
+}
+
+tasks.named('integrationTest') {
+    useJUnitPlatform()
+}
+
+// JaCoCo Configuration
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+// Configure JaCoCo for unit tests
+tasks.named('test') {
+    finalizedBy jacocoTestReport
+}
+
+// Configure JaCoCo for integration tests
+tasks.named('integrationTest') {
+    finalizedBy jacocoIntegrationTestReport
+}
+
+// JaCoCo test report configuration
+jacocoTestReport {
+    dependsOn test
+    
+    reports {
+        xml.required = true
+        xml.destination file("${buildDir}/reports/jacoco/test/jacocoTestReport.xml")
+        
+        html.required = true
+        html.destination file("${buildDir}/reports/jacoco/test/html")
+        
+        csv.required = false
+    }
+}
+
+// JaCoCo integration test report configuration
+tasks.named('jacocoIntegrationTestReport') {
+    reports {
+        xml.required = true
+        xml.destination file("${buildDir}/reports/jacoco/integrationTest/jacocoIntegrationTestReport.xml")
+        
+        html.required = true
+        html.destination file("${buildDir}/reports/jacoco/integrationTest/html")
+        
+        csv.required = false
+    }
+}
+
+// Combined JaCoCo report for both unit and integration tests
+task jacocoFullReport(type: JacocoReport) {
+    dependsOn test, integrationTest
+    
+    sourceSets sourceSets.main
+    executionData fileTree(project.buildDir).include("jacoco/*.exec")
+    
+    reports {
+        xml.required = true
+        xml.destination file("${buildDir}/reports/jacoco/full/jacocoFullReport.xml")
+        
+        html.required = true
+        html.destination file("${buildDir}/reports/jacoco/full/html")
+        
+        csv.required = false
+    }
+}
+
+// Apply exclusions to all JaCoCo reports
+afterEvaluate {
+    tasks.withType(JacocoReport).configureEach {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                '**/config/**',
+                '**/pojo/**',
+                '**/*Application.class'
+            ])
+        }))
+    }
+}
+
+// JaCoCo coverage verification
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.0
+            }
+        }
+    }
+}

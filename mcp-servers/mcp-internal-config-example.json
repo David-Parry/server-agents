@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "jira-mcp-server": {
+      "command": "java",
+      "args": [
+        "-jar",
+        "/path/to/mcp-internal.jar"
+      ],
+      "env": {
+        "GIT_MCP_ENABLED": "true",
+        "JIRA_MCP_ENABLED": "true",
+        "JIRA_SITE_URL": "https://your-domain.atlassian.net",
+        "JIRA_EMAIL": "your-email@example.com",
+        "JIRA_API_TOKEN": "your-jira-api-token"
+      }
+    }
+  }
+}
