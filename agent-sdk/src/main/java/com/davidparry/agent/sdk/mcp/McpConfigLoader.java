@@ -228,15 +228,26 @@ public class McpConfigLoader {
     
     /**
      * Substitutes environment variables in a map's values.
+     * For each entry, first applies {VAR_NAME} substitution to the value, then checks
+     * for a system environment variable named MCP_{KEY} which takes precedence if present.
+     * This allows secrets to be stored as MCP_JIRA_SITE_URL, MCP_JIRA_API_TOKEN, etc.
+     * without embedding them in the agent configuration file.
      */
     private Map<String, String> substituteMap(Map<String, String> map, Map<String, String> env) {
         if (map == null || map.isEmpty()) {
             return map;
         }
-        
+
         Map<String, String> result = new HashMap<>();
         for (Map.Entry<String, String> entry : map.entrySet()) {
-            result.put(entry.getKey(), substituteString(entry.getValue(), env));
+            String key = entry.getKey();
+            String resolved = substituteString(entry.getValue(), env);
+            String mcpEnvValue = env.get("MCP_" + key);
+            if (mcpEnvValue != null) {
+                logger.debug("Resolved env key '{}' from system environment variable 'MCP_{}'", key, key);
+                resolved = mcpEnvValue;
+            }
+            result.put(key, resolved);
         }
         return result;
     }

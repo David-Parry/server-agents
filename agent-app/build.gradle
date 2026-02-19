@@ -40,6 +40,31 @@ dependencies {
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
 
+bootRun {
+    // Inject MCP_* environment variables from ~/.zprofile so secrets are never
+    // hardcoded in config files. Works whether the app is launched from a terminal
+    // or directly from the IDE (which may not source ~/.zprofile).
+    doFirst {
+        try {
+            def envOutput = ['zsh', '-c', 'source ~/.zprofile 2>/dev/null && env'].execute().text
+            envOutput.split('\n').each { line ->
+                def idx = line.indexOf('=')
+                if (idx > 0) {
+                    def key = line.substring(0, idx)
+                    if (key.startsWith('MCP_')) {
+                        environment(key, line.substring(idx + 1))
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            logger.warn('Could not source ~/.zprofile — MCP_* environment variables may not be available')
+        }
+    }
+
+    // Default to the 'local' Spring profile; override with -Pprofile=<name>
+    systemProperty 'spring.profiles.active', findProperty('profile') ?: 'local'
+}
+
 tasks.withType(Test) {
     useJUnitPlatform()
 }
