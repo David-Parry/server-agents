@@ -184,6 +184,7 @@ A Next.js web application for platform administration.
 **Tech Stack:** Next.js 15, TypeScript, Tailwind CSS, React Query
 
 📖 [Full admin-client-spring-agents documentation](./admin-client-spring-agents/admin-ui/README.md)
+📖 [Admin Console overview (lights-out agent management)](./admin-client-spring-agents/docs/README.md)
 
 ---
 
