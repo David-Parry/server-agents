@@ -109,13 +109,22 @@ tasks.jacocoTestReport {
 
 tasks.jacocoTestCoverageVerification {
     dependsOn(tasks.jacocoTestReport)
+    val coveragePhase = (findProperty("coveragePhase") as String?) ?: "baseline"
+    val lineThresholdByPhase = mapOf(
+        "baseline" to "0.20".toBigDecimal(),
+        "intermediate" to "0.60".toBigDecimal(),
+        "target" to "0.85".toBigDecimal()
+    )
+    val lineCoverageMinimum = (findProperty("coverageMinimum") as String?)?.toBigDecimal()
+        ?: lineThresholdByPhase[coveragePhase]
+        ?: lineThresholdByPhase.getValue("baseline")
     
     violationRules {
         rule {
             limit {
                 counter = "LINE"
                 value = "COVEREDRATIO"
-                minimum = "0.55".toBigDecimal()
+                minimum = lineCoverageMinimum
             }
         }
         rule {

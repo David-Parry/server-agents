@@ -2,6 +2,7 @@ plugins {
     id "java-library"
     id "maven-publish"
     id "org.jreleaser" version "1.21.0"
+    id "jacoco"
 }
 
 
@@ -68,10 +69,49 @@ dependencies {
 
 tasks.withType(Test) {
     useJUnitPlatform()
+    finalizedBy tasks.jacocoTestReport
 }
 
 tasks.withType(JavaCompile) {
     options.release = 21
+}
+
+def coveragePhase = (findProperty("coveragePhase") ?: "baseline").toString()
+def coverageThresholdByPhase = [
+        baseline    : 0.20,
+        intermediate: 0.60,
+        target      : 0.85
+]
+def coverageMinimum = (findProperty("coverageMinimum") ?: coverageThresholdByPhase.getOrDefault(coveragePhase, 0.20)) as BigDecimal
+
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = false
+    }
+}
+
+jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = coverageMinimum
+            }
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn jacocoTestCoverageVerification
 }
 
 // Ensure this produces a plain JAR, not a Spring Boot executable JAR

@@ -1,0 +1,805 @@
+asyncapi: 3.0.0
+
+info:
+  title: Agent Message Protocol
+  version: 1.0.0
+  description: |
+    WebSocket protocol for communication between Agent Client (SDK) and Agent Server (Proxy).
+
+    Messages are JSON-encoded, discriminated by a `type` field, and share a common base envelope
+    with `messageId` (UUID) and `timestamp` (ISO-8601). Authentication is via `X-API-Key` header
+    on the WebSocket upgrade request.
+  license:
+    name: Proprietary
+
+servers:
+  production:
+    host: '{host}:{port}'
+    pathname: /ws/agent
+    protocol: ws
+    description: Agent proxy WebSocket endpoint
+    variables:
+      host:
+        default: localhost
+      port:
+        default: '8080'
+    security:
+      - $ref: '#/components/securitySchemes/apiKey'
+
+channels:
+  agentProtocol:
+    address: /ws/agent
+    description: Bidirectional WebSocket channel for all agent protocol messages
+    messages:
+      # Client -> Server
+      createSession:
+        $ref: '#/components/messages/createSession'
+      toolCallResponse:
+        $ref: '#/components/messages/toolCallResponse'
+      cancelSession:
+        $ref: '#/components/messages/cancelSession'
+      # Server -> Client
+      connectionEstablished:
+        $ref: '#/components/messages/connectionEstablished'
+      sessionStarted:
+        $ref: '#/components/messages/sessionStarted'
+      toolCallRequest:
+        $ref: '#/components/messages/toolCallRequest'
+      streamChunk:
+        $ref: '#/components/messages/streamChunk'
+      sessionResult:
+        $ref: '#/components/messages/sessionResult'
+      sessionCancelled:
+        $ref: '#/components/messages/sessionCancelled'
+      error:
+        $ref: '#/components/messages/error'
+      # Bidirectional
+      heartbeat:
+        $ref: '#/components/messages/heartbeat'
+
+operations:
+  # Client sends
+  sendCreateSession:
+    action: send
+    channel:
+      $ref: '#/channels/agentProtocol'
+    summary: Create a new agent session
+    messages:
+      - $ref: '#/channels/agentProtocol/messages/createSession'
+
+  sendToolCallResponse:
+    action: send
+    channel:
+      $ref: '#/channels/agentProtocol'
+    summary: Respond to a tool call request
+    messages:
+      - $ref: '#/channels/agentProtocol/messages/toolCallResponse'
+
+  sendCancelSession:
+    action: send
+    channel:
+      $ref: '#/channels/agentProtocol'
+    summary: Cancel an active session
+    messages:
+      - $ref: '#/channels/agentProtocol/messages/cancelSession'
+
+  sendHeartbeat:
+    action: send
+    channel:
+      $ref: '#/channels/agentProtocol'
+    summary: Send heartbeat ping
+    messages:
+      - $ref: '#/channels/agentProtocol/messages/heartbeat'
+
+  # Client receives
+  receiveConnectionEstablished:
+    action: receive
+    channel:
+      $ref: '#/channels/agentProtocol'
+    summary: Connection confirmed with capabilities
+    messages:
+      - $ref: '#/channels/agentProtocol/messages/connectionEstablished'
+
+  receiveSessionStarted:
+    action: receive
+    channel:
+      $ref: '#/channels/agentProtocol'
+    summary: Session creation confirmed
+    messages:
+      - $ref: '#/channels/agentProtocol/messages/sessionStarted'
+
+  receiveToolCallRequest:
+    action: receive
+    channel:
+      $ref: '#/channels/agentProtocol'
+    summary: Server requests tool execution
+    messages:
+      - $ref: '#/channels/agentProtocol/messages/toolCallRequest'
+
+  receiveStreamChunk:
+    action: receive
+    channel:
+      $ref: '#/channels/agentProtocol'
+    summary: Receive streaming response chunk
+    messages:
+      - $ref: '#/channels/agentProtocol/messages/streamChunk'
+
+  receiveSessionResult:
+    action: receive
+    channel:
+      $ref: '#/channels/agentProtocol'
+    summary: Receive final session result
+    messages:
+      - $ref: '#/channels/agentProtocol/messages/sessionResult'
+
+  receiveSessionCancelled:
+    action: receive
+    channel:
+      $ref: '#/channels/agentProtocol'
+    summary: Session cancellation confirmed
+    messages:
+      - $ref: '#/channels/agentProtocol/messages/sessionCancelled'
+
+  receiveError:
+    action: receive
+    channel:
+      $ref: '#/channels/agentProtocol'
+    summary: Receive error notification
+    messages:
+      - $ref: '#/channels/agentProtocol/messages/error'
+
+  receiveHeartbeat:
+    action: receive
+    channel:
+      $ref: '#/channels/agentProtocol'
+    summary: Receive heartbeat pong
+    messages:
+      - $ref: '#/channels/agentProtocol/messages/heartbeat'
+
+components:
+  securitySchemes:
+    apiKey:
+      type: httpApiKey
+      name: X-API-Key
+      in: header
+
+  messages:
+    createSession:
+      name: CreateSession
+      title: Create Session
+      summary: Client requests a new agent session
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/CreateSession'
+
+    toolCallResponse:
+      name: ToolCallResponse
+      title: Tool Call Response
+      summary: Client sends tool execution result
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ToolCallResponse'
+
+    cancelSession:
+      name: CancelSession
+      title: Cancel Session
+      summary: Client requests session cancellation
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/CancelSession'
+
+    connectionEstablished:
+      name: ConnectionEstablished
+      title: Connection Established
+      summary: Server confirms WebSocket connection
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ConnectionEstablished'
+
+    sessionStarted:
+      name: SessionStarted
+      title: Session Started
+      summary: Server confirms session creation
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/SessionStarted'
+
+    toolCallRequest:
+      name: ToolCallRequest
+      title: Tool Call Request
+      summary: Server requests tool execution
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ToolCallRequest'
+
+    streamChunk:
+      name: StreamChunk
+      title: Stream Chunk
+      summary: Server sends streaming response chunk
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/StreamChunk'
+
+    sessionResult:
+      name: SessionResult
+      title: Session Result
+      summary: Server sends final session result
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/SessionResult'
+
+    sessionCancelled:
+      name: SessionCancelled
+      title: Session Cancelled
+      summary: Server confirms session cancellation
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/SessionCancelled'
+
+    error:
+      name: ErrorMessage
+      title: Error
+      summary: Server sends error notification
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ErrorMessage'
+
+    heartbeat:
+      name: Heartbeat
+      title: Heartbeat
+      summary: Bidirectional keep-alive message
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Heartbeat'
+
+  schemas:
+    # ──────────────────────────────────────────
+    # Base envelope (mixed into every message)
+    # ──────────────────────────────────────────
+    McpProxyMessageBase:
+      type: object
+      required: [type, messageId, timestamp]
+      properties:
+        type:
+          type: string
+          description: Discriminator field identifying the message type
+        messageId:
+          type: string
+          format: uuid
+          description: Unique message identifier (auto-generated)
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp (auto-generated)
+
+    # ──────────────────────────────────────────
+    # Client -> Server Messages
+    # ──────────────────────────────────────────
+    CreateSession:
+      allOf:
+        - $ref: '#/components/schemas/McpProxyMessageBase'
+        - type: object
+          required: [sessionId, agent, tools, streamResponse, maxDurationSeconds]
+          properties:
+            type:
+              const: create_session
+            sessionId:
+              type: string
+              description: Client-generated unique session identifier
+            agent:
+              $ref: '#/components/schemas/Agent'
+            schema:
+              type: string
+              description: JSON Schema defining expected output format
+            tools:
+              type: array
+              items:
+                $ref: '#/components/schemas/ToolDefinition'
+              description: Tools available for the agent
+            streamResponse:
+              type: boolean
+              description: Whether to stream intermediate results
+            maxDurationSeconds:
+              type: integer
+              description: Maximum session duration in seconds
+            promptParams:
+              type: object
+              additionalProperties: true
+              description: Parameters for prompt template substitution
+              default: {}
+
+    ToolCallResponse:
+      allOf:
+        - $ref: '#/components/schemas/McpProxyMessageBase'
+        - type: object
+          required: [sessionId, requestId, success, executionTimeMs]
+          properties:
+            type:
+              const: tool_call_response
+            sessionId:
+              type: string
+              description: Session this response belongs to
+            requestId:
+              type: string
+              description: Matches requestId from ToolCallRequest
+            success:
+              type: boolean
+              description: Whether the tool executed successfully
+            result:
+              type: string
+              description: JSON-stringified tool result
+            errorMessage:
+              type: string
+              description: Error description if success is false
+            executionTimeMs:
+              type: integer
+              format: int64
+              description: Execution time in milliseconds
+
+    CancelSession:
+      allOf:
+        - $ref: '#/components/schemas/McpProxyMessageBase'
+        - type: object
+          required: [sessionId, reason]
+          properties:
+            type:
+              const: cancel_session
+            sessionId:
+              type: string
+              description: Session to cancel
+            reason:
+              type: string
+              description: Human-readable cancellation reason
+
+    # ──────────────────────────────────────────
+    # Server -> Client Messages
+    # ──────────────────────────────────────────
+    ConnectionEstablished:
+      allOf:
+        - $ref: '#/components/schemas/McpProxyMessageBase'
+        - type: object
+          required: [connectionId, serverVersion, maxConcurrentSessions, capabilities]
+          properties:
+            type:
+              const: connection_established
+            connectionId:
+              type: string
+              description: Unique connection identifier
+            serverVersion:
+              type: string
+              description: Server version string
+            maxConcurrentSessions:
+              type: integer
+              description: Maximum concurrent sessions allowed
+            capabilities:
+              $ref: '#/components/schemas/Capabilities'
+
+    SessionStarted:
+      allOf:
+        - $ref: '#/components/schemas/McpProxyMessageBase'
+        - type: object
+          required: [sessionId, toolCount]
+          properties:
+            type:
+              const: session_started
+            sessionId:
+              type: string
+              description: Client-generated session identifier
+            toolCount:
+              type: integer
+              description: Number of tools registered for the session
+
+    ToolCallRequest:
+      allOf:
+        - $ref: '#/components/schemas/McpProxyMessageBase'
+        - type: object
+          required: [sessionId, requestId, toolName]
+          properties:
+            type:
+              const: tool_call_request
+            sessionId:
+              type: string
+              description: Session this request belongs to
+            requestId:
+              type: string
+              description: Unique request identifier; echo in ToolCallResponse
+            toolName:
+              type: string
+              description: Name of the tool to execute
+            deadline:
+              type: string
+              format: date-time
+              description: Deadline for tool completion
+            arguments:
+              type: object
+              additionalProperties: true
+              description: Tool input arguments (JSON object or JSON-encoded string)
+
+    StreamChunk:
+      allOf:
+        - $ref: '#/components/schemas/McpProxyMessageBase'
+        - type: object
+          required: [sessionId, sequenceNumber, chunkType, isLast]
+          properties:
+            type:
+              const: stream_chunk
+            sessionId:
+              type: string
+              description: Session this chunk belongs to
+            sequenceNumber:
+              type: integer
+              description: Monotonically increasing sequence number
+            chunkType:
+              $ref: '#/components/schemas/ChunkType'
+            content:
+              type: string
+              description: Text content of the chunk
+            toolCall:
+              $ref: '#/components/schemas/ToolCallInfo'
+            isLast:
+              type: boolean
+              description: True if this is the final chunk
+
+    SessionResult:
+      allOf:
+        - $ref: '#/components/schemas/McpProxyMessageBase'
+        - type: object
+          required: [sessionId, success, toolCallsExecuted, totalDurationMs]
+          properties:
+            type:
+              const: session_result
+            sessionId:
+              type: string
+              description: Session identifier
+            success:
+              type: boolean
+              description: Whether the session completed successfully
+            content:
+              type: object
+              additionalProperties: true
+              description: Agent response content (also accepts "response" alias)
+            errorMessage:
+              type: string
+              description: Error description if success is false
+            toolCallsExecuted:
+              type: integer
+              description: Total tool calls executed
+            totalDurationMs:
+              type: integer
+              format: int64
+              description: Total session duration in milliseconds
+            metrics:
+              $ref: '#/components/schemas/SessionMetrics'
+            next_agent:
+              type: string
+              description: >
+                Next agent name for chaining, or a NextAgentStatus value
+                (END_CHAIN, FAILED_AGENT)
+
+    SessionCancelled:
+      allOf:
+        - $ref: '#/components/schemas/McpProxyMessageBase'
+        - type: object
+          required: [sessionId, reason, toolCallsCompleted, toolCallsPending]
+          properties:
+            type:
+              const: session_cancelled
+            sessionId:
+              type: string
+              description: Cancelled session identifier
+            reason:
+              type: string
+              description: Cancellation reason
+            toolCallsCompleted:
+              type: integer
+              description: Tool calls completed before cancellation
+            toolCallsPending:
+              type: integer
+              description: Tool calls pending at cancellation time
+
+    ErrorMessage:
+      allOf:
+        - $ref: '#/components/schemas/McpProxyMessageBase'
+        - type: object
+          required: [code, message]
+          properties:
+            type:
+              const: error
+            sessionId:
+              type: string
+              description: Session the error relates to (if applicable)
+            code:
+              $ref: '#/components/schemas/ErrorCode'
+            message:
+              type: string
+              description: Human-readable error description
+            details:
+              type: object
+              additionalProperties: true
+              description: Additional error context
+
+    # ──────────────────────────────────────────
+    # Bidirectional Messages
+    # ──────────────────────────────────────────
+    Heartbeat:
+      allOf:
+        - $ref: '#/components/schemas/McpProxyMessageBase'
+        - type: object
+          required: [sequenceNumber, isResponse]
+          properties:
+            type:
+              const: heartbeat
+            sequenceNumber:
+              type: integer
+              format: int64
+              description: Monotonically increasing heartbeat sequence
+            isResponse:
+              type: boolean
+              description: false for ping, true for pong
+
+    # ──────────────────────────────────────────
+    # Shared Data Types
+    # ──────────────────────────────────────────
+    Agent:
+      type: object
+      required: [name, description, type, instructions]
+      description: Agent configuration, typically loaded from agent.yml
+      properties:
+        name:
+          type: string
+          description: Agent identifier
+        description:
+          type: string
+          description: Human-readable description
+        type:
+          $ref: '#/components/schemas/AgentType'
+        instructions:
+          type: string
+          description: Prompt instructions for the agent
+        mcpServers:
+          type: string
+          description: MCP server configuration as JSON string
+        tools:
+          type: array
+          items:
+            type: string
+          description: Tool identifiers in "server-name.tool-name" format
+        output_schema:
+          type: string
+          description: JSON Schema string for expected response format
+        next_agent:
+          type: string
+          description: Name of the next agent for chaining
+
+    ToolDefinition:
+      type: object
+      required: [name, description, inputSchema]
+      description: Describes a tool available for agent invocation
+      properties:
+        name:
+          type: string
+          description: Unique tool name
+        description:
+          type: string
+          description: Human-readable tool description
+        inputSchema:
+          type: object
+          additionalProperties: true
+          description: JSON Schema defining tool input parameters
+
+    ToolCallInfo:
+      type: object
+      required: [toolName, requestId, success]
+      description: Tool call metadata within StreamChunk messages
+      properties:
+        toolName:
+          type: string
+          description: Name of the tool
+        requestId:
+          type: string
+          description: Unique request identifier
+        arguments:
+          type: object
+          additionalProperties: true
+          description: Tool input arguments
+        result:
+          type: string
+          description: Tool result (populated in TOOL_END chunks)
+        success:
+          type: boolean
+          description: Whether the tool call succeeded
+
+    Capabilities:
+      type: object
+      required: [streamingSupported, maxConcurrentSessions, sessionTimeoutSeconds, toolCallTimeoutSeconds]
+      description: Server capability advertisement
+      properties:
+        streamingSupported:
+          type: boolean
+          description: Whether streaming responses are supported
+        maxConcurrentSessions:
+          type: integer
+          description: Maximum concurrent sessions per connection
+        sessionTimeoutSeconds:
+          type: integer
+          description: Default session timeout in seconds
+        toolCallTimeoutSeconds:
+          type: integer
+          description: Default tool call timeout in seconds
+
+    SessionMetrics:
+      type: object
+      required: [durationMs, toolCallCount, tokenCount]
+      description: Performance metrics for a completed session
+      properties:
+        durationMs:
+          type: integer
+          format: int64
+          description: Total duration in milliseconds
+        toolCallCount:
+          type: integer
+          description: Number of tool calls made
+        tokenCount:
+          type: integer
+          description: Total tokens consumed
+
+    BaseLlmResponse:
+      type: object
+      required: [success, reason]
+      description: Minimal structured response contract from an LLM
+      properties:
+        success:
+          type: boolean
+          description: Whether the LLM determined the operation was successful
+        reason:
+          type: string
+          description: Concise explanation justifying the result
+
+    # ──────────────────────────────────────────
+    # Enumerations
+    # ──────────────────────────────────────────
+    ErrorCode:
+      type: string
+      description: Machine-readable error codes
+      enum:
+        - AUTHENTICATION_FAILED
+        - UNAUTHORIZED
+        - RATE_LIMITED
+        - CONNECTION_LIMIT_EXCEEDED
+        - SESSION_NOT_FOUND
+        - SESSION_EXPIRED
+        - SESSION_TIMEOUT
+        - SESSION_LIMIT_EXCEEDED
+        - TOOL_NOT_FOUND
+        - TOOL_EXECUTION_FAILED
+        - TOOL_CALL_TIMEOUT
+        - TOOL_CALL_FAILED
+        - CONNECTION_ERROR
+        - INVALID_MESSAGE
+        - INTERNAL_ERROR
+
+    ChunkType:
+      type: string
+      description: Types of streaming response chunks
+      enum:
+        - TEXT
+        - TOOL_START
+        - TOOL_END
+        - THINKING
+        - ERROR
+
+    AgentType:
+      type: string
+      description: Agent classification types
+      enum:
+        - ANALYST
+        - ENGINEER
+        - REVIEWER
+        - DIAGNOSTICIAN
+
+    NextAgentStatus:
+      type: string
+      description: Special values for the next_agent field in SessionResult
+      enum:
+        - END_CHAIN
+        - FAILED_AGENT
+
+    # ──────────────────────────────────────────
+    # MCP Server Configuration
+    # ──────────────────────────────────────────
+    McpConfig:
+      type: object
+      description: MCP server configuration container
+      properties:
+        mcpServers:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/McpServer'
+
+    McpServer:
+      type: object
+      description: MCP server configuration (sealed interface with stdio, http, sse variants)
+      discriminator: type
+      required: [type, name]
+      properties:
+        type:
+          type: string
+          enum: [stdio, http, streamable-http, sse]
+        name:
+          type: string
+          description: Server name
+        env:
+          type: object
+          additionalProperties:
+            type: string
+          description: Environment variables
+      oneOf:
+        - $ref: '#/components/schemas/StdioServer'
+        - $ref: '#/components/schemas/HttpServer'
+        - $ref: '#/components/schemas/SseServer'
+
+    StdioServer:
+      type: object
+      required: [type, name, command]
+      properties:
+        type:
+          const: stdio
+        name:
+          type: string
+        command:
+          type: string
+          description: Command to execute
+        args:
+          type: array
+          items:
+            type: string
+          description: Command arguments
+        env:
+          type: object
+          additionalProperties:
+            type: string
+
+    HttpServer:
+      type: object
+      required: [type, name, url]
+      properties:
+        type:
+          type: string
+          enum: [http, streamable-http]
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+          description: Server URL
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+          description: HTTP headers
+        env:
+          type: object
+          additionalProperties:
+            type: string
+
+    SseServer:
+      type: object
+      required: [type, name, url]
+      properties:
+        type:
+          const: sse
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+          description: SSE endpoint URL
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+          description: HTTP headers
+        env:
+          type: object
+          additionalProperties:
+            type: string

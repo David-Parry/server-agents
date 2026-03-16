@@ -2,6 +2,18 @@
 
 Shared message protocol library for WebSocket communication between agent client and server components.
 
+## Protocol Specification
+
+The complete protocol specification is documented in **[PROTOCOL.md](PROTOCOL.md)**, which includes:
+
+- **Message catalog** -- all 11 message types with wire format, field tables, and JSON examples
+- **Sequence diagrams** -- session lifecycle, tool execution, agent chaining, cancellation, and heartbeat flows
+- **State machine** -- session state transitions from connection through completion
+- **Shared data types** -- Agent, ToolDefinition, Capabilities, SessionMetrics, and all enumerations (ErrorCode, ChunkType, AgentType, NextAgentStatus)
+- **MCP server configuration** -- Stdio, HTTP, and SSE transport schemas
+
+A machine-readable **[AsyncAPI 3.0.0 specification](asyncapi.yaml)** is also provided for code generation, validation, and interactive documentation tooling.
+
 ## Overview
 
 This library provides:

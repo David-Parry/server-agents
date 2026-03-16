@@ -27,6 +27,17 @@ tasks.register<com.github.gradle.node.npm.task.NpmTask>("npmLint") {
     args.set(listOf("run", "lint"))
 }
 
+tasks.register<com.github.gradle.node.npm.task.NpmTask>("npmTest") {
+    dependsOn("npmInstall")
+    args.set(listOf("run", "test"))
+}
+
+tasks.register<com.github.gradle.node.npm.task.NpmTask>("npmCoverage") {
+    dependsOn("npmInstall")
+    args.set(listOf("run", "coverage"))
+    environment.set(mapOf("COVERAGE_PHASE" to ((findProperty("coveragePhase") as String?) ?: "baseline")))
+}
+
 tasks.register<com.github.gradle.node.npm.task.NpmTask>("npmStart") {
     dependsOn("npmBuild")
     args.set(listOf("run", "start"))
@@ -35,4 +46,8 @@ tasks.register<com.github.gradle.node.npm.task.NpmTask>("npmStart") {
 // Wire up standard Gradle lifecycle tasks
 tasks.named("build") {
     dependsOn("npmBuild")
+}
+
+tasks.named("check") {
+    dependsOn("npmTest")
 }

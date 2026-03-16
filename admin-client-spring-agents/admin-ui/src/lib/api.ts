@@ -41,7 +41,7 @@ import {
   MonthlyTokenUsageResponse,
 } from './types';
 
-class ApiClient {
+export class ApiClient {
   private baseUrl: string;
   private token: string | null = null;
 

@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class TerminalServiceTest {
@@ -61,6 +62,17 @@ class TerminalServiceTest {
         assertFalse(result.isError());
         assertEquals(0, result.exitCode());
         assertTrue(result.output().contains("Hello World"));
+        verify(mcpConfiguration).ensureRootsInitialized(toolContext);
+    }
+
+    @Test
+    void testNullTimeoutUsesConfiguredDefault() throws InterruptedException {
+        when(mcpConfiguration.getDefaultTimeoutSeconds()).thenReturn(1L);
+        ToolOutputResult result = terminalService.executeCommand("sleep 5", null, toolContext);
+
+        assertNotNull(result);
+        assertTrue(result.isError());
+        assertEquals("Timeout", result.errorMessage());
     }
 
     @Test

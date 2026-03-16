@@ -159,11 +159,26 @@ afterEvaluate {
 
 // JaCoCo coverage verification
 jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+    def coveragePhase = (findProperty("coveragePhase") ?: "baseline").toString()
+    def coverageThresholdByPhase = [
+        baseline    : 0.20,
+        intermediate: 0.60,
+        target      : 0.85
+    ]
+    def coverageMinimum = (findProperty("coverageMinimum") ?: coverageThresholdByPhase.getOrDefault(coveragePhase, 0.20)) as BigDecimal
+
     violationRules {
         rule {
             limit {
-                minimum = 0.0
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = coverageMinimum
             }
         }
     }
+}
+
+tasks.named("check") {
+    dependsOn jacocoTestCoverageVerification
 }
