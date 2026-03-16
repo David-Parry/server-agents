@@ -1,0 +1,60 @@
+name: CI CD Pipeline
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - "feature/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test monorepo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: admin-client-spring-agents/admin-ui/package-lock.json
+
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x ./gradlew
+
+      # Single gate for all modules:
+      # - Java modules compile/test/check
+      # - admin-ui runs npm test + npm build through its Gradle tasks
+      - name: Run full monorepo build
+        run: ./gradlew clean build --no-daemon
+
+      - name: Upload build reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-reports
+          path: |
+            **/build/reports/**
+            **/build/test-results/**
+            **/build/jacoco/**
+          if-no-files-found: ignore

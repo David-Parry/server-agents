@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+echo "Running monorepo build gate before push..."
+
+if ./gradlew clean build --no-daemon; then
+  echo "Build succeeded. Push allowed."
+else
+  echo "Build failed. Push blocked."
+  exit 1
+fi
