@@ -5,8 +5,8 @@ on:
   push:
     branches:
       - main
-      - master
-      - develop
+      - trunk
+      - "dev/**"
       - "feature/**"
 
 permissions:
