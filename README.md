@@ -7,14 +7,8 @@ A comprehensive **AI Agent Platform** designed to enable remote AI agents to aug
 - [Overview](#overview)
 - [Architecture](#architecture)
 - [Components](#components)
-  - [spring-agents (Server)](#spring-agents-server)
-  - [agent-sdk (Client)](#agent-sdk-client)
-  - [admin-client-spring-agents (Admin Portal)](#admin-client-spring-agents-admin-portal)
-  - [agent-message-protocol (Shared Library)](#agent-message-protocol-shared-library)
 - [Agent Types](#agent-types)
 - [Quick Start](#quick-start)
-- [Communication Flow](#communication-flow)
-- [Security Model](#security-model)
 - [Observability](#observability)
 - [SDLC Workflow Examples](#sdlc-workflow-examples)
 - [License](#license)
@@ -45,67 +39,40 @@ A comprehensive **AI Agent Platform** designed to enable remote AI agents to aug
 
 ## Architecture
 
+``` mermaid
+flowchart TB
+  subgraph Admin["Admin"]
+    C1["Admin Portal"]
+  end
+
+  subgraph SaaS["SaaS Platform"]
+    direction LR
+    B1["WebSocket Server\n+ Session Orchestration"]
+    B2["LLM\n(Claude / Ollama)"]
+    B3["Auth / State\n/ Telemetry"]
+    B1 --> B2
+    B1 --> B3
+  end
+
+  subgraph Client["Customer Compute (Sandbox)"]
+    direction LR
+    A1["Agent-SDK"]
+    A2["Local MCP Servers\n+ Code + Tools"]
+    A1 --> A2
+  end
+
+  subgraph CustInfra["Remote Customer Infrastructure"]
+    D1["Databases / Shared Files\nCustom Apps / CI Pipelines"]
+  end
+
+  C1 -->|"REST"| SaaS
+  A1 <-->|"Secure WebSocket"| B1
+  A2 -->|"customer network"| D1
 ```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                        ADMIN PORTAL (admin-client-spring-agents)                 │
-│                         Next.js Web Application (Port 3000)                      │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌────────────┐ │
-│  │ Dashboard   │ │ Customers   │ │ Models      │ │ Policies    │ │ Audit Logs │ │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ └────────────┘ │
-└────────────────────────────────────┬────────────────────────────────────────────┘
-                                     │ REST API (Bearer Token Auth)
-                                     ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           SPRING-AGENTS SERVER (Port 8080)                       │
-│                                                                                  │
-│  ┌──────────────────────────────────────────────────────────────────────────┐   │
-│  │                        WebSocket Endpoint: /agent                         │   │
-│  │  • API Key Authentication (X-API-Key header)                              │   │
-│  │  • Rate Limiting per customer                                             │   │
-│  │  • Session Management (multiple concurrent sessions)                      │   │
-│  └──────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                  │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────────────────┐  │
-│  │ LLM Integration │  │ Customer/Token  │  │ Agent Configuration             │  │
-│  │ (Spring AI)     │  │ Management      │  │ • ANALYST                       │  │
-│  │ • Anthropic     │  │ • Token Hashing │  │ • ENGINEER                      │  │
-│  │ • Ollama        │  │ • Usage Tracking│  │ • REVIEWER                      │  │
-│  └─────────────────┘  │ • Policy Types  │  │ • DIAGNOSTICIAN                 │  │
-│                       └─────────────────┘  └─────────────────────────────────┘  │
-│                                                                                  │
-│  ┌─────────────────────────────────────────────────────────────────────────┐    │
-│  │                         Database (H2/PostgreSQL)                         │    │
-│  │  CUSTOMER | CUSTOMER_TOKEN | LLM_MODEL | POLICY_TYPE | ALLOWANCE | AUDIT │    │
-│  └─────────────────────────────────────────────────────────────────────────┘    │
-└────────────────────────────────────┬────────────────────────────────────────────┘
-                                     │ WebSocket (TLS)
-                                     │ Tool Call Requests ↓ / Tool Results ↑
-                                     ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                         AGENT-CLIENT (Developer Machine)                         │
-│                                                                                  │
-│  ┌──────────────────────────────────────────────────────────────────────────┐   │
-│  │                    WebSocket Client Handler                               │   │
-│  │  • Auto-reconnect with exponential backoff                                │   │
-│  │  • Heartbeat keep-alive                                                   │   │
-│  │  • Session-isolated MCP server management                                 │   │
-│  └──────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                  │
-│  ┌─────────────────────────────────────────────────────────────────────────┐    │
-│  │                    MCP Server Manager (Spring AI MCP)                    │    │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │    │
-│  │  │ Filesystem  │  │ Terminal    │  │ Git         │  │ Custom MCP  │     │    │
-│  │  │ (STDIO)     │  │ (STDIO)     │  │ (STDIO)     │  │ (HTTP/SSE)  │     │    │
-│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘     │    │
-│  └─────────────────────────────────────────────────────────────────────────┘    │
-│                                                                                  │
-│  ┌─────────────────────────────────────────────────────────────────────────┐    │
-│  │                    Local Resources (Developer Machine)                   │    │
-│  │  • File System Access    • Terminal/Shell Commands                       │    │
-│  │  • Git Repositories      • Databases, APIs, etc.                         │    │
-│  └─────────────────────────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
+
+The platform separates concerns between **Client Compute** (customer environment) and **SaaS infrastructure**. The Agent-SDK runs as a sandboxed process on the customer's own compute, executing tools against local code, files, and MCP servers. Customer credentials and secrets **never leave the client environment**.
+
+📖 [In-depth architecture, security boundaries, and orchestration flows](./client_saas_architecture.md)
 
 ---
 
@@ -114,8 +81,6 @@ A comprehensive **AI Agent Platform** designed to enable remote AI agents to aug
 ### spring-agents (Server)
 
 The central hub that orchestrates AI agent interactions.
-
-**Key Features:**
 
 | Feature | Description |
 |---------|-------------|
@@ -127,15 +92,6 @@ The central hub that orchestrates AI agent interactions.
 | Security | JWT tokens, API key hashing (versioned secrets), audit logging |
 | Observability | Prometheus metrics, structured logging, health endpoints |
 
-**Database Entities:**
-
-- `CUSTOMER` - Multi-tenant customer records
-- `CUSTOMER_TOKEN` - Hashed API tokens with versioned secrets
-- `LLM_MODEL` - Supported LLM models (Claude, Ollama variants)
-- `POLICY_TYPE` - Token reset policies (daily, weekly, monthly, unlimited)
-- `CUSTOMER_MODEL_ALLOWANCE` - Per-customer, per-model token limits
-- `SECURITY_AUDIT_LOG` - Comprehensive audit trail
-
 📖 [Full spring-agents documentation](./spring-agents/README.md)
 
 ---
@@ -144,23 +100,13 @@ The central hub that orchestrates AI agent interactions.
 
 A Spring Boot application that runs on developer machines, bridging local tools with the remote server.
 
-**Key Features:**
-
 | Feature | Description |
 |---------|-------------|
-| WebSocket Client | Connects to spring-agents with auto-reconnect |
-| MCP Server Manager | Manages local MCP servers (STDIO, HTTP, SSE) |
+| WebSocket Client | Connects to spring-agents with auto-reconnect and heartbeat keep-alive |
+| MCP Server Manager | Manages local MCP servers (STDIO, HTTP, SSE transports) |
 | Session Isolation | Each session gets its own MCP server instances |
 | Tool Execution | Executes tools locally and returns results to server |
 | Configuration | YAML/JSON-based agent and MCP server configuration |
-
-**Supported MCP Server Types:**
-
-| Type | Transport | Example |
-|------|-----------|---------|
-| STDIO | stdin/stdout | `npx @modelcontextprotocol/server-filesystem` |
-| HTTP | Streamable HTTP | `https://mcp.sentry.dev/mcp` |
-| SSE | Server-Sent Events | Legacy remote servers |
 
 📖 [Full agent-sdk documentation](./agent-sdk/README.md)
 
@@ -168,20 +114,7 @@ A Spring Boot application that runs on developer machines, bridging local tools 
 
 ### admin-client-spring-agents (Admin Portal)
 
-A Next.js web application for platform administration.
-
-**Features:**
-
-| Page | Functionality |
-|------|---------------|
-| Dashboard | System statistics, recent activity, quick actions |
-| Customers | Create, enable/disable, manage API tokens, view allowances |
-| Models | Add/configure LLM models, set default token allocations |
-| Policies | Configure token reset policies (daily, weekly, monthly) |
-| Audit Logs | View/filter security audit trail, cleanup old logs |
-| Settings | Configure admin token and API settings |
-
-**Tech Stack:** Next.js 15, TypeScript, Tailwind CSS, React Query
+A Next.js web application (Next.js 15, TypeScript, Tailwind CSS, React Query) for platform administration: customer management, model configuration, token policies, and audit log viewing.
 
 📖 [Full admin-client-spring-agents documentation](./admin-client-spring-agents/admin-ui/README.md)
 📖 [Admin Console overview (lights-out agent management)](./admin-client-spring-agents/docs/README.md)
@@ -190,30 +123,15 @@ A Next.js web application for platform administration.
 
 ### agent-message-protocol (Shared Library)
 
-A shared Java library defining the WebSocket message protocol.
+A shared Java library defining all WebSocket message types exchanged between the Agent-SDK and spring-agents.
 
-**Message Types:**
-
-| Direction | Message | Description |
-|-----------|---------|-------------|
-| Server → Client | `ConnectionEstablished` | Connection confirmation with capabilities |
-| Server → Client | `SessionStarted` | Session creation confirmation |
-| Server → Client | `ToolCallRequest` | Request to execute a tool |
-| Server → Client | `StreamChunk` | Streaming response chunk |
-| Server → Client | `SessionResult` | Final session result |
-| Server → Client | `ErrorMessage` | Error notification |
-| Client → Server | `CreateSession` | Create a new session with agent config |
-| Client → Server | `ToolCallResponse` | Tool execution result |
-| Client → Server | `CancelSession` | Cancel an active session |
-| Bidirectional | `Heartbeat` | Keep-alive message |
-
-📖 [Full agent-message-protocol documentation](./agent-message-protocol/README.md)
+📖 [Full agent-message-protocol documentation](./agent-message-protocol/README.md) | [Protocol details](./client_saas_architecture.md#shared-protocol-agent-message-protocol)
 
 ---
 
 ## Agent Types
 
-The platform provides four core agent types designed for specific SDLC roles:
+Four specialized agent roles for the SDLC:
 
 | Agent Type | Purpose | Writes Code | Uses Tools |
 |------------|---------|-------------|------------|
@@ -373,74 +291,6 @@ Create `mcp.json` in the agent-sdk resources:
     }
   }
 }
-```
-
----
-
-## Communication Flow
-
-```
-1. Agent-Client connects via WebSocket with API key
-         │
-         ▼
-2. Server validates API key, creates connection
-         │
-         ▼
-3. Server sends ConnectionEstablished with capabilities
-         │
-         ▼
-4. Client sends CreateSession with agent config and tools
-         │
-         ▼
-5. Server validates session, sends SessionStarted
-         │
-         ▼
-6. Server executes prompt via LLM (Anthropic/Ollama)
-         │
-         ▼
-7. When LLM needs a tool:
-   ┌─────────────────────────────────────────┐
-   │ a. Server sends ToolCallRequest         │
-   │ b. Client executes tool locally via MCP │
-   │ c. Client sends ToolCallResponse        │
-   │ d. Server continues LLM conversation    │
-   └─────────────────────────────────────────┘
-         │
-         ▼
-8. Server sends SessionResult with final response
-         │
-         ▼
-9. Session cleanup on both sides
-```
-
----
-
-## Security Model
-
-| Layer | Mechanism |
-|-------|-----------|
-| **Authentication** | API keys (hashed with versioned secrets) |
-| **Authorization** | Per-customer model allowances |
-| **Rate Limiting** | Per-customer, per-minute limits |
-| **Token Management** | JWT with configurable expiration |
-| **Audit Trail** | Comprehensive security event logging |
-| **Secret Rotation** | Versioned hashing secrets for zero-downtime rotation |
-
-### API Key Authentication
-
-```bash
-# WebSocket connection with API key header
-websocat -H="X-API-Key: your-api-key" "ws://localhost:8080/agent"
-
-# Or via query parameter
-websocat "ws://localhost:8080/agent?apiKey=your-api-key"
-```
-
-### Admin API Authentication
-
-```bash
-curl -H "Authorization: Bearer $AGENT_ADMIN_API_TOKEN" \
-  http://localhost:8080/api/admin/stats
 ```
 
 ---
