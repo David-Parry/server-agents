@@ -1,0 +1,88 @@
+
+
+### Create a new customer called "acme" with default unlimited policy type
+POST http://localhost:8080/api/customers
+Content-Type: application/json
+
+{
+  "name": "acme"
+}
+
+### Create a new customer with a specific policy type (uses default tokens from policy type)
+POST http://localhost:8080/api/customers
+Content-Type: application/json
+
+{
+  "name": "acme-monthly",
+  "policyTypeName": "MONTHLY"
+}
+
+### Create a premium customer with custom token allocation (overrides policy default)
+POST http://localhost:8080/api/customers
+Content-Type: application/json
+
+{
+  "name": "acme-premium",
+  "policyTypeName": "MONTHLY",
+  "totalTokens": 500000
+}
+
+### List all customers
+GET http://localhost:8080/api/customers
+Accept: application/json
+
+### List all available policy types
+GET http://localhost:8080/api/customers/policy-types
+Accept: application/json
+
+### Get a specific customer by customerId (replace with actual UUID)
+GET http://localhost:8080/api/customers/{{customerId}}
+Accept: application/json
+
+### Generate a new token for an existing customer (replace with actual UUID)
+POST http://localhost:8080/api/customers/{{customerId}}/tokens
+Content-Type: application/json
+
+{
+  "expiresInDays": 30,
+  "revokeExisting": false
+}
+
+### Revoke all tokens for a customer (replace with actual UUID)
+DELETE http://localhost:8080/api/customers/{{customerId}}/tokens
+
+### Update customer policy type and optionally token allocation (replace with actual UUID)
+PUT http://localhost:8080/api/customers/{{customerId}}/policy
+Content-Type: application/json
+
+{
+  "policyTypeName": "YEARLY",
+  "totalTokens": 10000000
+}
+
+### Update only the token allocation for a customer (replace with actual UUID)
+PATCH http://localhost:8080/api/customers/{{customerId}}/tokens-allocation
+Content-Type: application/json
+
+{
+  "totalTokens": 750000
+}
+
+### Disable a customer (replace with actual UUID)
+PATCH http://localhost:8080/api/customers/{{customerId}}/status
+Content-Type: application/json
+
+{
+  "enabled": false
+}
+
+### Enable a customer (replace with actual UUID)
+PATCH http://localhost:8080/api/customers/{{customerId}}/status
+Content-Type: application/json
+
+{
+  "enabled": true
+}
+
+### Reset token usage for a customer (replace with actual UUID)
+POST http://localhost:8080/api/customers/{{customerId}}/reset-usage

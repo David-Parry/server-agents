@@ -1,0 +1,179 @@
+server: # WebSocket message size limits
+  tomcat:
+    max-http-form-post-size: 20MB
+  servlet:
+    session:
+      timeout: 30m
+
+spring: # Database configuration
+  datasource:
+    url: jdbc:h2:file:./data/spring-agents;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+  
+  h2:
+    console:
+      enabled: ${H2_CONSOLE_ENABLED:true}
+      path: /h2-console
+      settings:
+        web-allow-others: false
+
+  ai: # Ollama configuration
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        options:
+          model: llama3.1:8b
+    # Anthropic configuration
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY}
+      chat:
+        options:
+          model: claude-sonnet-4-5
+          max-tokens: 4096
+
+# MCP Proxy Configuration
+# Authentication is handled via database-backed customer tokens.
+# See: customer and customer_token tables.
+mcp:
+  proxy:
+    enabled: true
+
+    connection:
+      idle-timeout-seconds: 3600
+      heartbeat-interval-seconds: 30
+      max-connections-per-client: 5
+      max-concurrent-sessions: 10
+      require-tls: false  # Set to true in production
+
+    session:
+      max-duration-seconds: 3600
+      tool-call-timeout-seconds: 300
+      tool-call-retry-attempts: 2
+      tool-call-retry-delay-ms: 1000
+
+    streaming:
+      enabled: true
+      chunk-size: 100
+      flush-interval-ms: 50
+
+    circuit-breaker:
+      failure-threshold: 5
+      success-threshold: 3
+      timeout-seconds: 300
+      half-open-max-calls: 3
+
+    web-socket:
+      endpoint: /agent
+      allowed-origins:
+        - "*"  # Configure appropriately for production (e.g., https://yourdomain.com)
+      # WebSocket message buffer sizes (in bytes)
+      # Increase these if you encounter "message too big" errors (close code 1009)
+      max-text-message-buffer-size: 20971520    # 20MB - handles large LLM responses
+      max-binary-message-buffer-size: 20971520  # 20MB
+      max-session-idle-timeout-ms: 3600000      # 60 minutes
+
+# Actuator endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,prometheuscustomers
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      access: unrestricted
+    prometheuscustomers:
+      enabled: true
+  metrics:
+    tags:
+      application: spring-agents
+    distribution:
+      percentiles-histogram:
+        spring.agents.session.duration.seconds: true
+        spring.agents.tool.call.duration.seconds: true
+        mcp.sessions.duration: true
+        mcp.tool.calls.duration.all: true
+      slo:
+        spring.agents.session.duration.seconds: 1s,5s,10s,30s,60s,120s,300s,600s
+        spring.agents.tool.call.duration.seconds: 100ms,500ms,1s,5s,10s,30s,60s
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+        descriptions: true
+        step: 30s
+
+# OpenAPI / Swagger configuration
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+    display-request-duration: true
+    filter: true
+  show-actuator: false
+  default-produces-media-type: application/json
+  default-consumes-media-type: application/json
+
+# Logging configuration
+# Main logging configuration is in logback-spring.xml
+# These properties can be overridden via environment variables
+logging:
+  config: classpath:logback-spring.xml
+  # Log file location (can be overridden with LOG_PATH env var)
+  file:
+    path: ${LOG_PATH:logs}
+    name: ${LOG_FILE:spring-agents}
+
+# Agent security configuration
+agent: # Admin API configuration
+  admin: # Admin API token for AdminController authentication
+    # Generate with: openssl rand -base64 48
+    # REQUIRED: Must be set via environment variable (no default for security)
+    api-token: ${AGENT_ADMIN_API_TOKEN}
+    # Enable/disable admin API (default: true)
+    enabled: ${AGENT_ADMIN_ENABLED:true}
+  
+  security: # Map of secret versions for rotation support
+    # Keys must be sequential: V1, V2, V3, etc.
+    # Each secret must be at least 32 characters
+    # Generate secrets with: openssl rand -base64 64
+    # REQUIRED: Must be set via environment variable (no default for security)
+    hashing-secrets:
+      V1: ${AGENT_HASHING_SECRET_V1}
+      # V2: ${AGENT_HASHING_SECRET_V2}  # Uncomment when rotating to a new secret
+    
+    # Current version for hashing NEW tokens
+    # Change this to V2 (etc.) when rotating to a new secret
+    current-secret-version: ${AGENT_HASHING_SECRET_CURRENT:V1}
+    
+    # JWT configuration for API tokens
+    jwt: # Secret key for signing JWTs (minimum 32 characters for HS256)
+      # Generate with: openssl rand -base64 48
+      # REQUIRED: Must be set via environment variable (no default for security)
+      signing-key: ${AGENT_JWT_SIGNING_KEY}
+      # Issuer claim for generated tokens
+      issuer: ${AGENT_JWT_ISSUER:spring-agents}
+      # Default token expiration in days (0 for non-expiring tokens)
+      expiration-days: ${AGENT_JWT_EXPIRATION_DAYS:0}

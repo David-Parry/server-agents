@@ -1,0 +1,40 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+
+# Build outputs
+out/
+target/
+
+# Test outputs
+test-output/
+
+# Temporary files
+tmp/
+temp/
+/data/
+/src/main/resources/application-local.yml
+/.claude/
+/.qodo/
