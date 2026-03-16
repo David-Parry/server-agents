@@ -3,7 +3,7 @@
     "git-mcp": {
       "command": "java",
       "args": [
-        "-jar ../build/libs/mcp-internal-1.0.4.jar"
+        "-jar ../build/libs/mcp-servers-1.0.4.jar"
       ],
       "env": {
 
