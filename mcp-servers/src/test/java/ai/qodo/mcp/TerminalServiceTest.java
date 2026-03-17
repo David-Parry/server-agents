@@ -144,6 +144,7 @@ class TerminalServiceTest {
 
     @Test
     void testMultipleBlockedCommands() throws InterruptedException {
+        when(mcpConfiguration.getBlockedCommands()).thenReturn(Set.of("rm", "sudo", "shutdown", "chmod"));
         String[] blockedCommands = {"rm test.txt", "sudo ls", "shutdown now", "chmod 777 file"};
         
         for (String command : blockedCommands) {
