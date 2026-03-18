@@ -1,6 +1,8 @@
-# Server-Agents Platform
+# Qodo Server-Agents Platform
 
-A comprehensive **AI Agent Platform** designed to enable remote AI agents to augment and automate workflows across the **Software Development Lifecycle (SDLC)**. The platform follows a client-server architecture where AI-powered agents assist developers, QA engineers, and other contributors with intelligent automation.
+The **server-side backbone** of [Qodo's](https://www.qodo.ai) AI agent infrastructure. It orchestrates LLM interactions, enforces governance policies, and manages multi-tenant access so that customer-deployed agents operate within controlled, auditable boundaries.
+
+The **Agent SDK** is the customer-facing runtime. It runs on customer infrastructure, connects to the Qodo platform over a secure WebSocket, and executes tools locally via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). The platform provides **model abstraction** (customers interact with agents, not specific LLMs), **governance** (token budgets, usage policies, audit trails), and **system prompt injection safeguards** (prompts are managed server-side, not exposed to client modification).
 
 ## Table of Contents
 
@@ -17,22 +19,21 @@ A comprehensive **AI Agent Platform** designed to enable remote AI agents to aug
 
 ## Overview
 
-**Server-Agents** provides an enterprise-grade platform for AI-assisted software development:
-
 | Component | Purpose |
 |-----------|---------|
-| **spring-agents** | Central server hosting LLM integrations (Anthropic Claude, Ollama) with customer management, token usage tracking, and policy enforcement |
-| **agent-sdk** | Runs on developer machines, connecting to the server via WebSocket and executing tools locally through the Model Context Protocol (MCP) |
-| **admin-client-spring-agents** | Web application for administrators to manage customers, monitor usage, and configure the platform |
-| **agent-message-protocol** | Shared Java library defining the WebSocket message protocol between client and server |
+| **spring-agents** | Qodo's central orchestration server — LLM routing, session management, governance enforcement, token tracking, and policy controls |
+| **agent-sdk** | Customer-deployed agent runtime — connects to the platform, receives tasks, and executes tools locally via MCP. Customer credentials never leave their environment |
+| **admin-client-spring-agents** | Admin portal for managing customers, models, token policies, and viewing audit logs |
+| **agent-message-protocol** | Shared message library defining the WebSocket protocol between SDK and server |
 
 ### Key Features
 
-- **Multi-LLM Support**: Integrates with Anthropic (Claude) and Ollama via Spring AI
-- **Remote Tool Execution**: Proxies tool calls to connected clients for local execution
-- **Multi-Tenant Architecture**: Per-customer token allowances with configurable reset policies
+- **Model Abstraction**: Customers use agents without coupling to specific LLM providers; the platform routes to Anthropic (Claude), Ollama, or future providers transparently
+- **Governance & Policy Enforcement**: Per-customer token budgets, configurable reset policies, and centralized audit logging
+- **System Prompt Safeguards**: Agent prompts are managed server-side, preventing client-side injection or tampering
+- **Secure Remote Execution**: Tool calls are proxied to the SDK for local execution — customer secrets and code never leave their infrastructure
 - **MCP Integration**: Full support for Model Context Protocol servers (STDIO, HTTP, SSE)
-- **Enterprise Security**: API key authentication, JWT tokens, audit logging, rate limiting
+- **Enterprise Security**: API key authentication, JWT tokens, rate limiting, security audit trails
 - **Observability**: Prometheus metrics, Grafana dashboards, structured logging
 
 ---
@@ -41,36 +42,48 @@ A comprehensive **AI Agent Platform** designed to enable remote AI agents to aug
 
 ``` mermaid
 flowchart TB
-  subgraph Admin["Admin"]
-    C1["Admin Portal"]
+  subgraph Qodo["Qodo / SaaS"]
+    direction TB
+    C1["Admin Portal\n(Web UI)"]
+
+    subgraph Platform["Platform Services"]
+      direction LR
+      B1["WebSocket Server\n+ Session Orchestration"]
+      B2["LLM Providers\n(Claude / Ollama)"]
+      B3["Auth / Governance\n/ Telemetry"]
+      B1 --> B2
+      B1 --> B3
+    end
+
+    C1 -->|"REST"| Platform
   end
 
-  subgraph SaaS["SaaS Platform"]
-    direction LR
-    B1["WebSocket Server\n+ Session Orchestration"]
-    B2["LLM\n(Claude / Ollama)"]
-    B3["Auth / State\n/ Telemetry"]
-    B1 --> B2
-    B1 --> B3
+  Internet{{"☁️ Internet"}}
+
+  subgraph Customer["Customer Environment"]
+    subgraph Compute["Customer Compute (Sandbox)"]
+      direction LR
+      A1["Agent-SDK\n(Runtime)"]
+      A2["Local MCP Servers\n+ Code + Tools"]
+      A1 --> A2
+    end
+
+    subgraph CustInfra["Customer Infrastructure"]
+      D1["Databases / Shared Files\nCustom Apps / CI Pipelines"]
+    end
+
+    A2 -->|"private network"| D1
   end
 
-  subgraph Client["Customer Compute (Sandbox)"]
-    direction LR
-    A1["Agent-SDK"]
-    A2["Local MCP Servers\n+ Code + Tools"]
-    A1 --> A2
-  end
+  C1 -->|"HTTPS"| Internet
+  B1 <-->|"Secure WebSocket\n(WSS + API Key)"| Internet
+  Internet <-->|"Secure WebSocket\n(WSS + API Key)"| A1
 
-  subgraph CustInfra["Remote Customer Infrastructure"]
-    D1["Databases / Shared Files\nCustom Apps / CI Pipelines"]
-  end
-
-  C1 -->|"REST"| SaaS
-  A1 <-->|"Secure WebSocket"| B1
-  A2 -->|"customer network"| D1
+  linkStyle 6 stroke:red
+  linkStyle 7 stroke:red
 ```
 
-The platform separates concerns between **Client Compute** (customer environment) and **SaaS infrastructure**. The Agent-SDK runs as a sandboxed process on the customer's own compute, executing tools against local code, files, and MCP servers. Customer credentials and secrets **never leave the client environment**.
+The **Qodo platform** runs as a managed SaaS service. The **Agent SDK** runs on customer infrastructure, connecting through the internet via secure WebSocket (WSS). Customer credentials and secrets **never leave the customer environment** — the platform only sends orchestration messages and receives tool results.
 
 📖 [In-depth architecture, security boundaries, and orchestration flows](./client_saas_architecture.md)
 
@@ -78,9 +91,9 @@ The platform separates concerns between **Client Compute** (customer environment
 
 ## Components
 
-### spring-agents (Server)
+### spring-agents (Qodo Platform Server)
 
-The central hub that orchestrates AI agent interactions.
+The orchestration hub that manages LLM interactions, enforces governance, and routes tool calls to connected agent runtimes.
 
 | Feature | Description |
 |---------|-------------|
@@ -96,9 +109,9 @@ The central hub that orchestrates AI agent interactions.
 
 ---
 
-### agent-sdk (Client)
+### agent-sdk (Customer Agent Runtime)
 
-A Spring Boot application that runs on developer machines, bridging local tools with the remote server.
+A Spring Boot runtime that runs on customer infrastructure, connecting to the Qodo platform and executing tools locally. Customer credentials and secrets never leave their environment.
 
 | Feature | Description |
 |---------|-------------|
