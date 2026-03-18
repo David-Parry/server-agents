@@ -248,6 +248,95 @@ class AgentConfigLoaderTest {
         assertTrue(agent.hasMcpConfig());
         assertTrue(agent.mcpConfig().mcpServers().containsKey("remote-api"));
     }
+
+    @Test
+    void loadFromString_withGraphTransitions_parsesAndValidates() throws IOException {
+        String yaml = """
+            version: "1.0"
+
+            agents:
+              jira_agent:
+                description: "jira"
+                type: "ANALYST"
+                instructions: "analyze"
+                output_schema: |
+                  { "properties": { "status": { "type": "string" } } }
+                graph:
+                  edges:
+                    - when: "$status == 'design_complete'"
+                      to: "coding_agent"
+                    - when: "default"
+                      to: "END_CHAIN"
+              coding_agent:
+                description: "coding"
+                type: "ENGINEER"
+                instructions: "code"
+            """;
+
+        Agents agents = loader.loadFromString(yaml);
+        Agent jiraAgent = agents.getAgent("jira_agent").orElseThrow();
+        assertTrue(jiraAgent.hasGraph());
+        assertEquals(2, jiraAgent.graph().edges().size());
+    }
+
+    @Test
+    void loadFromString_withGraphUnknownTarget_throwsException() {
+        String yaml = """
+            version: "1.0"
+
+            agents:
+              jira_agent:
+                description: "jira"
+                type: "ANALYST"
+                instructions: "analyze"
+                graph:
+                  edges:
+                    - when: "default"
+                      to: "missing_agent"
+            """;
+
+        assertThrows(IOException.class, () -> loader.loadFromString(yaml));
+    }
+
+    @Test
+    void loadFromString_withMultipleDefaultEdges_throwsException() {
+        String yaml = """
+            version: "1.0"
+
+            agents:
+              jira_agent:
+                description: "jira"
+                type: "ANALYST"
+                instructions: "analyze"
+                graph:
+                  edges:
+                    - when: "default"
+                      to: "END_CHAIN"
+                    - when: "default"
+                      to: "FAILED_AGENT"
+            """;
+
+        assertThrows(IOException.class, () -> loader.loadFromString(yaml));
+    }
+
+    @Test
+    void loadFromString_withMalformedGraphCondition_throwsException() {
+        String yaml = """
+            version: "1.0"
+
+            agents:
+              jira_agent:
+                description: "jira"
+                type: "ANALYST"
+                instructions: "analyze"
+                graph:
+                  edges:
+                    - when: "$status = 'bad_syntax'"
+                      to: "END_CHAIN"
+            """;
+
+        assertThrows(IOException.class, () -> loader.loadFromString(yaml));
+    }
     
     @Test
     void loadFromClasspath_withExampleAgentYml_parsesCorrectly() throws IOException {

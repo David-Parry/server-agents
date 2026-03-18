@@ -2,6 +2,10 @@ package com.davidparry.agent.sdk.context;
 
 import com.davidparry.agent.sdk.agent.AgentConfigLoader;
 import com.davidparry.agent.sdk.config.AgentSdkProperties;
+import com.davidparry.agent.sdk.context.routing.AgentTransitionResolver;
+import com.davidparry.agent.sdk.context.routing.SimpleEdgeConditionEvaluator;
+import com.davidparry.agent.sdk.context.routing.SimpleOutputSchemaValidator;
+import com.davidparry.agent.sdk.context.routing.TransitionDecision;
 import com.davidparry.agent.sdk.mcp.McpServerManager;
 import com.davidparry.agent.sdk.mcp.SessionMcpManager;
 import com.davidparry.agent.sdk.websocket.WebSocketClientHandler;
@@ -67,6 +71,7 @@ public class AgentApplicationContext {
     private final WebSocketClientHandler webSocketHandler;
     private final McpServerManager mcpServerManager;
     private final AgentConfigLoader agentConfigLoader;
+    private final AgentTransitionResolver transitionResolver;
 
     // Active session tracking
     private final Map<String, AgentSession> activeSessions = new ConcurrentHashMap<>();
@@ -99,6 +104,8 @@ public class AgentApplicationContext {
         this.webSocketHandler = webSocketHandler;
         this.mcpServerManager = mcpServerManager;
         this.agentConfigLoader = new AgentConfigLoader(objectMapper);
+        this.transitionResolver = new AgentTransitionResolver(new SimpleOutputSchemaValidator(objectMapper),
+                                                              new SimpleEdgeConditionEvaluator());
     }
 
     /**
@@ -452,33 +459,43 @@ public class AgentApplicationContext {
             return;
         }
 
+        TransitionDecision transitionDecision = transitionResolver.resolve(session.getAgent(), result);
+
         // Record this agent's execution in chain history
         ChainedSessionResult.AgentExecutionSnapshot snapshot =
                 new ChainedSessionResult.AgentExecutionSnapshot(session.getAgentKey(), session.getAgent(), result,
-                                                                result.isSuccess() ? State.COMPLETED : State.FAILED,
+                                                                transitionDecision.effectiveSuccess() ? State.COMPLETED
+                                                                                                      : State.FAILED,
                                                                 session.getDurationMs(), session.getChainPosition());
 
         List<ChainedSessionResult.AgentExecutionSnapshot> history = chainHistory.computeIfAbsent(sessionId,
                                                                                                  k -> new CopyOnWriteArrayList<>());
         history.add(snapshot);
 
-        String nextAgentKey = session.getAgent().nextAgent();
+        String nextAgentKey = transitionDecision.nextAgentKey();
         if (NextAgentStatus.END_CHAIN
                 .getValue()
                 .equals(nextAgentKey) || nextAgentKey == null || nextAgentKey.isBlank()) {
-            logger.info("Session {} chain ended by server directive", sessionId);
-            completeChainSuccessfully(sessionId, result);
+            if (transitionDecision.effectiveSuccess()) {
+                logger.info("Session {} chain ended by transition decision", sessionId);
+                completeChainSuccessfully(sessionId, result);
+            } else {
+                logger.info("Session {} chain ended with failure decision (schemaValid={})", sessionId,
+                            transitionDecision.schemaValid());
+                completeChainWithFailure(sessionId, result, new IllegalStateException(
+                        "Chain ended without a valid next target and unsuccessful outcome"));
+            }
             return;
         }
 
         Agent nextAgent = getAgent(nextAgentKey).orElse(null);
-        if (!result.isSuccess()) {
-            logger.info("Session {} chain ended due to agent failure", sessionId);
+        if (NextAgentStatus.FAILED_AGENT.getValue().equals(nextAgentKey)) {
+            logger.info("Session {} directed to FAILED_AGENT", sessionId);
             Optional<Agent> failedAgentOpt = getAgent(NextAgentStatus.FAILED_AGENT.getValue());
             if (failedAgentOpt.isEmpty()) {
-                completeChainWithFailure(sessionId, result, new Exception("LMS returned false for success in llm " +
-                                                                                  "response, and there is no Agent " +
-                                                                                  "defined called: " + NextAgentStatus.FAILED_AGENT.getValue()));
+                completeChainWithFailure(sessionId, result, new Exception(
+                        "Routing resolved to FAILED_AGENT but no agent is configured with key: "
+                                + NextAgentStatus.FAILED_AGENT.getValue()));
                 return;
             }
             nextAgent = failedAgentOpt.get();

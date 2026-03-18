@@ -567,9 +567,31 @@ components:
         output_schema:
           type: string
           description: JSON Schema string for expected response format
+        graph:
+          $ref: '#/components/schemas/AgentGraph'
         next_agent:
           type: string
           description: Name of the next agent for chaining
+
+    AgentGraph:
+      type: object
+      description: Ordered conditional edges for outcome-based routing
+      properties:
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentTransitionEdge'
+
+    AgentTransitionEdge:
+      type: object
+      required: [when, to]
+      properties:
+        when:
+          type: string
+          description: Condition expression (for example "$status == 'fail'") or "default"
+        to:
+          type: string
+          description: Target agent name or NextAgentStatus value
 
     ToolDefinition:
       type: object

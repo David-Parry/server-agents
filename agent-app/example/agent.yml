@@ -60,7 +60,16 @@ agents:
   jira_agent:
     description: "Read the Jira Bug ticket, Analyze it and ensure it is enough to move forward with."
     type: "ANALYST"
-    next_agent: "coding_agent"
+    graph:
+      edges:
+        - when: "$schema_valid == false"
+          to: "FAILED_AGENT"
+        - when: "$status == 'design_complete'"
+          to: "coding_agent"
+        - when: "$success == false"
+          to: "FAILED_AGENT"
+        - when: "default"
+          to: "END_CHAIN"
 
     instructions: |
       **CRITICAL: NEVER OVERWRITE THE JIRA DESCRIPTION FIELD**

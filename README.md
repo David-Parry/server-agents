@@ -1,8 +1,8 @@
-# Qodo Server-Agents Platform
+# Server-Agents Platform
 
-The **server-side backbone** of [Qodo's](https://www.qodo.ai) AI agent infrastructure. It orchestrates LLM interactions, enforces governance policies, and manages multi-tenant access so that customer-deployed agents operate within controlled, auditable boundaries.
+The **server-side backbone** of this AI agent infrastructure. It orchestrates LLM interactions, enforces governance policies, and manages multi-tenant access so that customer-deployed agents operate within controlled, auditable boundaries.
 
-The **Agent SDK** is the customer-facing runtime. It runs on customer infrastructure, connects to the Qodo platform over a secure WebSocket, and executes tools locally via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). The platform provides **model abstraction** (customers interact with agents, not specific LLMs), **governance** (token budgets, usage policies, audit trails), and **system prompt injection safeguards** (prompts are managed server-side, not exposed to client modification).
+The **Agent SDK** is the customer-facing runtime. It runs on customer infrastructure, connects to the Platform over a secure WebSocket, and executes tools locally via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). The platform provides **model abstraction** (customers interact with agents, not specific LLMs), **governance** (token budgets, usage policies, audit trails), and **system prompt injection safeguards** (prompts are managed server-side, not exposed to client modification).
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ The **Agent SDK** is the customer-facing runtime. It runs on customer infrastruc
 
 | Component | Purpose |
 |-----------|---------|
-| **spring-agents** | Qodo's central orchestration server — LLM routing, session management, governance enforcement, token tracking, and policy controls |
+| **spring-agents** | central orchestration server — LLM routing, session management, governance enforcement, token tracking, and policy controls |
 | **agent-sdk** | Customer-deployed agent runtime — connects to the platform, receives tasks, and executes tools locally via MCP. Customer credentials never leave their environment |
 | **admin-client-spring-agents** | Admin portal for managing customers, models, token policies, and viewing audit logs |
 | **agent-message-protocol** | Shared message library defining the WebSocket protocol between SDK and server |
@@ -42,7 +42,7 @@ The **Agent SDK** is the customer-facing runtime. It runs on customer infrastruc
 
 ``` mermaid
 flowchart TB
-  subgraph Qodo["Qodo / SaaS"]
+  subgraph SaaS["SaaS"]
     direction TB
     C1["Admin Portal\n(Web UI)"]
 
@@ -75,7 +75,7 @@ flowchart TB
     A2 -->|"private network"| D1
   end
 
-  C1 -->|"HTTPS"| Internet
+  C1 <-->|"HTTPS"| Internet
   B1 <-->|"Secure WebSocket\n(WSS + API Key)"| Internet
   Internet <-->|"Secure WebSocket\n(WSS + API Key)"| A1
 
@@ -83,7 +83,7 @@ flowchart TB
   linkStyle 7 stroke:red
 ```
 
-The **Qodo platform** runs as a managed SaaS service. The **Agent SDK** runs on customer infrastructure, connecting through the internet via secure WebSocket (WSS). Customer credentials and secrets **never leave the customer environment** — the platform only sends orchestration messages and receives tool results.
+The **SaaS platform** runs as a managed SaaS service. The **Agent SDK** runs on customer infrastructure, connecting through the internet via secure WebSocket (WSS). Customer credentials and secrets **never leave the customer environment** — the platform only sends orchestration messages and receives tool results.
 
 📖 [In-depth architecture, security boundaries, and orchestration flows](./client_saas_architecture.md)
 
@@ -91,7 +91,7 @@ The **Qodo platform** runs as a managed SaaS service. The **Agent SDK** runs on 
 
 ## Components
 
-### spring-agents (Qodo Platform Server)
+### spring-agents (Platform Server)
 
 The orchestration hub that manages LLM interactions, enforces governance, and routes tool calls to connected agent runtimes.
 
@@ -111,7 +111,7 @@ The orchestration hub that manages LLM interactions, enforces governance, and ro
 
 ### agent-sdk (Customer Agent Runtime)
 
-A Spring Boot runtime that runs on customer infrastructure, connecting to the Qodo platform and executing tools locally. Customer credentials and secrets never leave their environment.
+A Spring Boot runtime that runs on customer infrastructure, connecting to the Platform and executing tools locally. Customer credentials and secrets never leave their environment.
 
 | Feature | Description |
 |---------|-------------|

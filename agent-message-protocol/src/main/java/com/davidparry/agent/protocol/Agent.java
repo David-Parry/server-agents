@@ -16,6 +16,7 @@ import java.util.List;
  * - MCP server configurations (as JSON string that gets parsed into McpConfig)
  * - A list of tools the agent can use
  * - An output schema defining the expected response format
+ * - An optional graph of conditional transition edges
  * - An optional next agent to hand off to after completion
  * 
  * @param name The name/identifier for this agent (set during loading from map key)
@@ -26,6 +27,7 @@ import java.util.List;
  * @param mcpConfig The parsed MCP configuration (set during loading)
  * @param tools List of tool identifiers the agent can use (format: "server-name.tool-name")
  * @param outputSchema The JSON schema defining the expected output format
+ * @param graph Optional conditional transition graph for selecting the next agent
  * @param nextAgent The optional name of the next agent to hand off to after this agent completes
  */
 public record Agent(
@@ -51,6 +53,9 @@ public record Agent(
     @JsonProperty("output_schema")
     String outputSchema,
 
+    @JsonProperty("graph")
+    AgentGraph graph,
+
     @JsonProperty("next_agent")
     String nextAgent
 
@@ -63,6 +68,27 @@ public record Agent(
         if (tools == null) {
             tools = List.of();
         }
+        if (graph == null) {
+            graph = AgentGraph.empty();
+        }
+    }
+
+    /**
+     * Backward-compatible constructor used by existing callers.
+     */
+    public Agent(
+            String name,
+            String description,
+            AgentType type,
+            String instructions,
+            String mcpServers,
+            McpConfig mcpConfig,
+            List<String> tools,
+            String outputSchema,
+            String nextAgent
+    ) {
+        this(name, description, type, instructions, mcpServers, mcpConfig, tools, outputSchema, AgentGraph.empty(),
+             nextAgent);
     }
     
     /**
@@ -73,7 +99,7 @@ public record Agent(
      */
     public Agent withName(String name) {
         return new Agent(name, this.description, this.type, this.instructions, 
-                        this.mcpServers, this.mcpConfig, this.tools, this.outputSchema, this.nextAgent);
+                        this.mcpServers, this.mcpConfig, this.tools, this.outputSchema, this.graph, this.nextAgent);
     }
     
     /**
@@ -84,7 +110,7 @@ public record Agent(
      */
     public Agent withMcpConfig(McpConfig mcpConfig) {
         return new Agent(this.name, this.description, this.type, this.instructions,
-                        this.mcpServers, mcpConfig, this.tools, this.outputSchema, this.nextAgent);
+                        this.mcpServers, mcpConfig, this.tools, this.outputSchema, this.graph, this.nextAgent);
     }
     
     /**
@@ -130,5 +156,14 @@ public record Agent(
      */
     public boolean hasNextAgent() {
         return nextAgent != null && !nextAgent.trim().isEmpty();
+    }
+
+    /**
+     * Checks if this agent has graph edges configured.
+     *
+     * @return true if graph contains at least one edge
+     */
+    public boolean hasGraph() {
+        return graph.hasEdges();
     }
 }

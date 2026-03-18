@@ -496,6 +496,7 @@ Agent configuration record, typically loaded from `agent.yml`.
 | `mcpConfig` | [`McpConfig`](#mcpconfig) | No | Parsed MCP configuration (set during loading) |
 | `tools` | `string[]` | No | Tool identifiers in `"server-name.tool-name"` format |
 | `output_schema` | `string` | No | JSON Schema string defining expected response format |
+| `graph` | [`AgentGraph`](#agentgraph) | No | Ordered conditional edges for outcome-based routing |
 | `next_agent` | `string` | No | Name of the next agent for chaining |
 
 ### ToolDefinition
@@ -507,6 +508,23 @@ Describes a tool available for the agent to invoke.
 | `name` | `string` | Yes | Unique tool name |
 | `description` | `string` | Yes | Human-readable description |
 | `inputSchema` | `object` | Yes | JSON Schema defining the tool's input parameters |
+
+### AgentGraph
+
+Conditional transition graph for agent chaining.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `edges` | [`AgentTransitionEdge[]`](#agenttransitionedge) | Yes | Ordered edges; first matching condition wins |
+
+### AgentTransitionEdge
+
+Single transition edge in an agent graph.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `when` | `string` | Yes | Condition expression (e.g. `$status == 'fail'`) or `default` |
+| `to` | `string` | Yes | Target agent name or [`NextAgentStatus`](#nextagentstatus) value |
 
 ### ToolCallInfo
 

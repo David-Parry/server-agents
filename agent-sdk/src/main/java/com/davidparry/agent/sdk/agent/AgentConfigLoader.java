@@ -3,7 +3,9 @@ package com.davidparry.agent.sdk.agent;
 import com.davidparry.agent.protocol.mcp.McpConfig;
 import com.davidparry.agent.sdk.mcp.McpConfigLoader;
 import com.davidparry.agent.protocol.Agent;
+import com.davidparry.agent.protocol.AgentTransitionEdge;
 import com.davidparry.agent.protocol.Agents;
+import com.davidparry.agent.protocol.dto.NextAgentStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.slf4j.Logger;
@@ -13,8 +15,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Loader for agent configuration files.
@@ -24,6 +28,8 @@ import java.util.Map;
 public class AgentConfigLoader {
     
     private static final Logger logger = LoggerFactory.getLogger(AgentConfigLoader.class);
+    private static final java.util.regex.Pattern CONDITION_PATTERN =
+            java.util.regex.Pattern.compile("^\\s*\\$[a-zA-Z_][a-zA-Z0-9_]*\\s*(==|!=)\\s*.+$");
     
     private final ObjectMapper yamlMapper;
     private final McpConfigLoader mcpConfigLoader;
@@ -150,6 +156,8 @@ public class AgentConfigLoader {
             
             processedAgents.put(agentName, processedAgent);
         }
+
+        validateTransitionTargets(processedAgents);
         
         logger.info("Loaded {} agent configurations", processedAgents.size());
         return new Agents(rawAgents.version(), processedAgents);
@@ -196,11 +204,76 @@ public class AgentConfigLoader {
         if (agent.instructions() == null || agent.instructions().trim().isEmpty()) {
             throw new IOException("Agent '" + agentName + "' has no instructions specified");
         }
+
+        validateGraphShape(agentName, agent);
         
         // Validate that tools reference valid MCP servers if MCP config is present
         if (agent.hasTools() && agent.hasMcpConfig()) {
             validateToolReferences(agentName, agent);
         }
+    }
+
+    private void validateGraphShape(String agentName, Agent agent) throws IOException {
+        if (!agent.hasGraph()) {
+            return;
+        }
+
+        int defaultCount = 0;
+        for (AgentTransitionEdge edge : agent.graph().edges()) {
+            if (edge == null) {
+                throw new IOException("Agent '" + agentName + "' has null graph edge");
+            }
+            if (edge.to() == null || edge.to().trim().isEmpty()) {
+                throw new IOException("Agent '" + agentName + "' has graph edge with empty 'to' target");
+            }
+            if (edge.when() == null || edge.when().trim().isEmpty()) {
+                throw new IOException("Agent '" + agentName + "' has graph edge with empty 'when' condition");
+            }
+            String when = edge.when().trim();
+            if (!"default".equalsIgnoreCase(when) && !CONDITION_PATTERN.matcher(when).matches()) {
+                throw new IOException("Agent '" + agentName + "' has invalid graph condition '" + edge.when() + "'");
+            }
+            if ("default".equalsIgnoreCase(when)) {
+                defaultCount++;
+            }
+        }
+
+        if (defaultCount > 1) {
+            throw new IOException("Agent '" + agentName + "' has more than one default graph edge");
+        }
+    }
+
+    private void validateTransitionTargets(Map<String, Agent> processedAgents) throws IOException {
+        Set<String> knownAgentNames = new HashSet<>(processedAgents.keySet());
+
+        for (Map.Entry<String, Agent> entry : processedAgents.entrySet()) {
+            String agentName = entry.getKey();
+            Agent agent = entry.getValue();
+
+            if (agent.hasNextAgent() && !isKnownTarget(agent.nextAgent(), knownAgentNames)) {
+                throw new IOException("Agent '" + agentName + "' references unknown next_agent target '" +
+                                              agent.nextAgent() + "'");
+            }
+
+            if (agent.hasGraph()) {
+                for (AgentTransitionEdge edge : agent.graph().edges()) {
+                    if (!isKnownTarget(edge.to(), knownAgentNames)) {
+                        throw new IOException("Agent '" + agentName + "' graph edge references unknown target '" +
+                                                      edge.to() + "'");
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean isKnownTarget(String target, Set<String> knownAgentNames) {
+        if (target == null || target.trim().isEmpty()) {
+            return false;
+        }
+        String normalized = target.trim();
+        return knownAgentNames.contains(normalized)
+                || NextAgentStatus.END_CHAIN.getValue().equals(normalized)
+                || NextAgentStatus.FAILED_AGENT.getValue().equals(normalized);
     }
     
     /**
