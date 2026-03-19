@@ -4,8 +4,23 @@ The **server-side backbone** of this AI agent infrastructure. It orchestrates LL
 
 The **Agent SDK** is the customer-facing runtime. It runs on customer infrastructure, connects to the Platform over a secure WebSocket, and executes tools locally via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). The platform provides **model abstraction** (customers interact with agents, not specific LLMs), **governance** (token budgets, usage policies, audit trails), and **system prompt injection safeguards** (prompts are managed server-side, not exposed to client modification).
 
+## Problem
+
+AI agents that participate in the SDLC — analyzing requirements, writing code, reviewing pull requests, running CI pipelines — require elevated privileges: API keys, service accounts, database credentials, and infrastructure access. A single agent effectively merges multiple permission boundaries into one execution point ([OWASP Top 10 for Agentic Applications, 2025](https://genai.owasp.org/2025/12/09/owasp-genai-security-project-releases-top-10-risks-and-mitigations-for-agentic-ai-security/)). This creates three compounding challenges:
+
+1. **Agents must run where the secrets live.** Because these agents hold "keys to the kingdom" — production credentials, source code access, CI/CD tokens — enterprises must execute them on-premises or in controlled environments to satisfy security, compliance, and sovereignty requirements. Gartner identifies AI Sovereignty as a top strategic trend for 2026, and Forrester has formalized the [Agent Control Plane](https://www.forrester.com/blogs/announcing-our-evaluation-of-the-agent-control-plane-market/) market category around centralized governance of agent execution.
+
+2. **The model lifecycle is operationally expensive and fast-moving.** Model selection, continuous upgrades, prompt versioning, token budget management, cost optimization, and regression testing across model versions are a full-time operational burden. Gartner predicts that over 40% of agentic AI projects will be canceled due to escalating costs and insufficient controls ([Gartner, 2025](https://www.gartner.com/en/newsroom/press-releases/2025-08-26-gartner-predicts-40-percent-of-enterprise-apps-will-feature-task-specific-ai-agents-by-2026-up-from-less-than-5-percent-in-2025)). LLMOps — prompt version control, automated evaluation, drift detection — has emerged as a distinct discipline precisely because this complexity exceeds what most teams can absorb alongside their core work.
+
+3. **Enterprises should not have to choose between control and velocity.** A SaaS provider can own the boilerplate — model routing, prompt management, token economics, continuous model upgrades and testing — and deliver it through a lightweight SDK. The enterprise retains full execution control: agent runtimes, credentials, and tool access never leave customer infrastructure. This hybrid pattern (SaaS-managed intelligence + on-prem execution) aligns with enterprise-grade frameworks already running critical workloads — Spring AI on the JVM ([InfoQ Java Trends, 2026](https://www.javacodegeeks.com/2026/03/5-latest-java-trends-to-keep-your-eye-on-in-2026.html)), Microsoft Semantic Kernel for .NET, and Akka for distributed systems — so adoption doesn't require replatforming to a Python-only stack.
+
+**This platform exists to solve that split:** the managed SaaS handles model orchestration, governance policy, and prompt lifecycle; the Agent SDK runs on customer infrastructure, executing tools locally via [MCP](https://modelcontextprotocol.io) with customer secrets that never cross the boundary.
+
+---
+
 ## Table of Contents
 
+- [Problem](#problem)
 - [Overview](#overview)
 - [Architecture](#architecture)
 - [Components](#components)
